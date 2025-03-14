@@ -6,7 +6,7 @@ Running project
    run `export PKG_CONFIG_PATH=/opt/homebrew/opt/icu4c/lib/pkgconfig` before command
 
 3. Run `cargo build`
-   If you get error "linking with `cc` failed, add these lines to Cargo.toml:
+   If you get error "linking with `cc` failed, add these lines to `~/.cargo/config`:
 
    ```
        [target.x86_64-apple-darwin]
