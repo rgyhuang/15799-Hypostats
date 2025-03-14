@@ -21,12 +21,12 @@ pg17 = ["pgrx/pg17", "pgrx-tests/pg17" ]
 pg_test = []
 
 [dependencies]
-pgrx = "=0.12.4"
+pgrx = "0.13.1"
 serde = "1.0.210"
 serde_json = "1.0.128"
 
 [dev-dependencies]
-pgrx-tests = "=0.12.4"
+pgrx-tests = "0.13.1"
 
 [profile.dev]
 panic = "unwind"
@@ -36,3 +36,5 @@ panic = "unwind"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+
+
