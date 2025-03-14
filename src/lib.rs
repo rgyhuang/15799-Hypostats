@@ -354,6 +354,20 @@ fn pg_statistic_load(
 }
 
 #[pg_extern]
+fn pg_modify_stats(
+    json_dump: String,
+    statistic_type: String,
+    statistic_value: String
+  ) -> String {
+  // Parse json 
+  // Search for statistic type
+  // If it doesn't exist: return original
+  // Else set it to statistic_value
+  // Return new string
+  json_dump
+}
+
+#[pg_extern]
 fn anyarray_elemtype(x: pgrx::AnyArray) -> Option<pg_sys::Oid> {
     // Get the type of the elements of the array using pg_sys.
     unsafe { aarr_elemtype(x.datum().cast_mut_ptr()) }
