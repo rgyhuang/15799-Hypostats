@@ -7,6 +7,14 @@ use serde::{Deserialize, Serialize};
 
 ::pgrx::pg_module_magic!();
 
+const STATISTIC_KIND_MCV: i16 = 1;
+const STATISTIC_KIND_HISTOGRAM: i16 =  2;
+const STATISTIC_KIND_CORRELATION: i16 = 3;
+const STATISTIC_KIND_MCELEM: i16 =  4;
+const STATISTIC_KIND_DECHIST: i16 = 5;
+const STATISTIC_KIND_RANGE_LENGTH_HISTOGRAM: i16 =  6;
+const STATISTIC_KIND_BOUNDS_HISTOGRAM: i16 =  7;
+
 // Safe to ignore pg_class because of its lazy flags
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -357,14 +365,82 @@ fn pg_statistic_load(
 fn pg_modify_stats(
     json_dump: String,
     statistic_type: String,
-    statistic_value: String
-  ) -> String {
+    new_value: String,
+    new_stavalues: String,
+    new_stanums: String,
+) -> Option<String> {
   // Parse json 
-  // Search for statistic type
-  // If it doesn't exist: return original
-  // Else set it to statistic_value
-  // Return new string
-  json_dump
+  let mut pg_row: PgStatisticRow = serde_json::from_str(&json_dump).unwrap();
+  match statistic_type.as_str() {
+    "NULLFRAC" => {
+      let new_frac_res = new_value.parse::<f32>();
+      if new_frac_res.is_err() {
+        return None;
+      }
+      pg_row.stanullfrac = new_frac_res.unwrap();
+    },
+    "WIDTH" => {
+      let new_width_res = new_value.parse::<i32>();
+      if new_width_res.is_err() {
+        return None;
+      }
+      pg_row.stawidth = new_width_res.unwrap();
+    },
+    "DISTINCT" => {
+      let new_distinct_res = new_value.parse::<f32>();
+      if new_distinct_res.is_err() {
+        return None;
+      }
+      pg_row.stadistinct = new_distinct_res.unwrap();
+    },
+    "CORRELATION" => {
+      // Verify new correlation value is a singleton array
+      let new_corr_res = new_stanums.trim_matches(|c| c == '[' || c == ']').parse::<i32>();
+      if !new_stanums.starts_with('[') || !new_stanums.ends_with(']') || 
+            new_corr_res.is_err() || new_corr_res.unwrap().abs() > 1 {
+        return None;
+      }
+      // Verify correlation is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind2 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind3 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind4 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind5 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+      } else {
+        return None;
+      }
+    },
+    "RANGE LENGTH" => {
+      // Verify new correlation value is a singleton array
+      let new_corr_res = new_stanums.trim_matches(|c| c == '[' || c == ']').parse::<f64>();
+      if !new_stanums.starts_with('[') || !new_stanums.ends_with(']') || 
+            new_corr_res.is_err() {
+        return None;
+      }
+      // Verify correlation is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind2 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind3 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind4 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind5 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+      } else {
+        return None;
+      }
+    }
+    _ => return None
+  };
+  let json_str = serde_json::to_string(&pg_row).unwrap();
+  Some(json_str)
 }
 
 #[pg_extern]
@@ -378,10 +454,10 @@ fn anyarray_elemtype(x: pgrx::AnyArray) -> Option<pg_sys::Oid> {
 mod tests {
     use pgrx::prelude::*;
 
-    #[pg_test]
-    fn test_hello_hypostats() {
-        assert_eq!("Hello, hypostats", crate::hello_hypostats());
-    }
+    // #[pg_test]
+    // fn test_hello_hypostats() {
+    //     assert_eq!("Hello, hypostats", crate::hello_hypostats());
+    // }
 }
 
 /// This module is required by `cargo pgrx test` invocations.

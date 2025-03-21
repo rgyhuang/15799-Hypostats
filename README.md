@@ -21,3 +21,14 @@ Running project
        "-C", "link-arg=dynamic_lookup",
        ]
    ```
+
+4. When making changes, after compiling must drop the extension and re-add it with
+   `DROP EXTENSION hypostats` and `CREATE EXTENSION hypostats`
+
+TESTING
+
+- Find column in pg_statistic that we want to modify
+- Get the json dump with pg_statistic_dump
+- Modify the attribute with pg_modify_stats
+- Take the new json dump and load with pg_statistic_load
+- Verify the statistic is updated
