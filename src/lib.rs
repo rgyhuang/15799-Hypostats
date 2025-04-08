@@ -149,6 +149,41 @@ struct PgStatisticRow {
     stavalues5: JsonAarr,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct PgClassRow {
+  oid: pg_sys::Oid,
+  relname: String,
+  relnamespace: pg_sys::Oid,
+  reltype: pg_sys::Oid,
+  reloftype: pg_sys::Oid,
+  relowner: pg_sys::Oid,
+  relam: pg_sys::Oid,
+  relfilenode: pg_sys::Oid,
+  reltablespace: pg_sys::Oid,
+  relpages: i32,
+  reltuples: f32,
+  relallvisible: i32,
+  reltoastrelid: pg_sys::Oid,
+  relhasindex: bool,
+  relisshared: bool,
+  relpersistence: i8,
+  relkind: i8,
+  relnatts: i16,
+  relchecks: i16,
+  relhasrules: bool,
+  relhastriggers: bool,
+  relhassubclass: bool,
+  relrowsecurity: bool,
+  relforcerowsecurity: bool,
+  relispopulated: bool,
+  relreplident: i8,
+  relispartition: bool,
+  relrewrite: pg_sys::Oid,
+  relfrozenxid: i32,
+  relminmxid: i32,
+  // TODO: add remaining three types: relacl, reloptions, relpartbound
+}
+
 unsafe fn aarr_elemtype(aarr: *mut pg_sys::AnyArrayType) -> Option<pg_sys::Oid> {
     if aarr.is_null() {
         None
@@ -175,6 +210,200 @@ unsafe fn pg_statistic_stavalues(tuple: *mut pg_sys::HeapTupleData, attnum: pg_s
         let elemtype = aarr_elemtype(aarr).unwrap();
         (pgrx::AnyArray::from_polymorphic_datum(datum, is_null, elemtype), Some(elemtype))
     }
+}
+
+// From ChatGPT
+fn char_arr_to_string(arr: [i8; 64]) -> String {
+  // Convert to Vec<u8>
+  let bytes: Vec<u8> = arr.iter().map(|&b| b as u8).collect();
+
+  // Trim at the first null byte (optional, if it's a C-style string)
+  let trimmed = &bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())];
+
+  // Convert to &str, then to String
+  let s = std::str::from_utf8(trimmed).expect("Invalid UTF-8").to_string();
+  s
+}
+
+#[pg_extern]
+fn pg_class_dump(
+  table_oid: i32,
+) -> Option<String> {
+  let result = unsafe {
+        let pg_statistic = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
+        let tuple = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
+        let tuple_json = if tuple.is_null() {
+            None
+        } else {
+            let stat_struct = pg_sys::GETSTRUCT(tuple) as *mut pg_sys::FormData_pg_class;
+
+            let oid: pg_sys::Oid = (*stat_struct).oid;
+            let relname: String = char_arr_to_string((*stat_struct).relname.data);
+            let relnamespace: pg_sys::Oid = (*stat_struct).relnamespace;
+            let reltype: pg_sys::Oid = (*stat_struct).reltype;
+            let reloftype: pg_sys::Oid = (*stat_struct).reloftype;
+            let relowner: pg_sys::Oid = (*stat_struct).relowner;
+            let relam: pg_sys::Oid = (*stat_struct).relam;
+            let relfilenode: pg_sys::Oid = (*stat_struct).relfilenode;
+            let reltablespace: pg_sys::Oid = (*stat_struct).reltablespace;
+            let relpages: i32 = (*stat_struct).relpages;
+            let reltuples: f32 = (*stat_struct).reltuples;
+            let relallvisible: i32 = (*stat_struct).relallvisible;
+            let reltoastrelid: pg_sys::Oid = (*stat_struct).reltoastrelid;
+            let relhasindex: bool = (*stat_struct).relhasindex;
+            let relisshared: bool = (*stat_struct).relisshared;
+            let relpersistence: i8 = (*stat_struct).relpersistence;
+            let relkind: i8 = (*stat_struct).relkind;
+            let relnatts: i16 = (*stat_struct).relnatts;
+            let relchecks: i16 = (*stat_struct).relchecks;
+            let relhasrules: bool = (*stat_struct).relhasrules;
+            let relhastriggers: bool = (*stat_struct).relhastriggers;
+            let relhassubclass: bool = (*stat_struct).relhassubclass;
+            let relrowsecurity: bool = (*stat_struct).relrowsecurity;
+            let relforcerowsecurity: bool = (*stat_struct).relforcerowsecurity;
+            let relispopulated: bool = (*stat_struct).relispopulated;
+            let relreplident: i8 = (*stat_struct).relreplident;
+            let relispartition: bool = (*stat_struct).relispartition;
+            let relrewrite: pg_sys::Oid = (*stat_struct).relrewrite;
+            let relfrozenxid: i32 = (*stat_struct).relfrozenxid as i32;
+            let relminmxid: i32 = (*stat_struct).relminmxid as i32;
+
+            let pg_row = PgClassRow {
+                oid,
+                relname,
+                relnamespace,
+                reltype,
+                reloftype,
+                relowner,
+                relam,
+                relfilenode,
+                reltablespace,
+                relpages,
+                reltuples,
+                relallvisible,
+                reltoastrelid,
+                relhasindex,
+                relisshared,
+                relpersistence,
+                relkind,
+                relnatts,
+                relchecks,
+                relhasrules,
+                relhastriggers,
+                relhassubclass,
+                relrowsecurity,
+                relforcerowsecurity,
+                relispopulated,
+                relreplident,
+                relispartition,
+                relrewrite,
+                relfrozenxid,
+                relminmxid
+            };
+
+            let json_str = serde_json::to_string(&pg_row).unwrap();
+            pg_sys::ReleaseSysCache(tuple);
+            Some(json_str)
+        };
+        pg_sys::table_close(pg_statistic, pg_sys::RowExclusiveLock as i32);
+        tuple_json
+    };
+    result
+}
+
+// From ChatGPT
+fn string_to_namedata(s: String) -> pg_sys::nameData {
+    let mut arr: [i8; 64] = [0; 64];
+    let bytes = s.as_bytes();
+    // Truncate if input is too long
+    let len = bytes.len().min(63); // leave space for null terminator if needed
+    for i in 0..len {
+        arr[i] = bytes[i] as i8;
+    }
+    pg_sys::nameData { data: arr }
+}
+
+#[pg_extern]
+fn pg_class_load(
+    data: String,
+) -> bool {
+    let pg_row: PgClassRow = serde_json::from_str(&data).unwrap();
+    let table_oid: u32 = pg_row.oid.as_u32();
+
+    let mut values: Vec<pg_sys::Datum> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+    let mut nulls: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+    let mut replaces: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+
+    for _ in 0..pg_sys::Natts_pg_class - 3 {
+        values.push(pg_sys::Datum::from(0));
+        nulls.push(false);
+        replaces.push(true);
+    }
+
+    for _ in 0..3 {
+        values.push(pg_sys::Datum::from(0));
+        nulls.push(true);
+        replaces.push(true);
+    }
+
+    // analyze.c performs a slightly cursed blend of Anum and i++ based accessing.
+    values[pg_sys::Anum_pg_class_oid as usize - 1] = pg_row.oid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relname as usize - 1] = string_to_namedata(pg_row.relname).into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relnamespace as usize - 1] = pg_row.relnamespace.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltype as usize - 1] = pg_row.reltype.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reloftype as usize - 1] = pg_row.reloftype.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relowner as usize - 1] = pg_row.relowner.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relam as usize - 1] = pg_row.relam.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relfilenode as usize - 1] = pg_row.relfilenode.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltablespace as usize - 1] = pg_row.reltablespace.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relpages as usize - 1] = pg_row.relpages.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltuples as usize - 1] = pg_row.reltuples.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relallvisible as usize - 1] = pg_row.relallvisible.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltoastrelid as usize - 1] = pg_row.reltoastrelid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhasindex as usize - 1] = pg_row.relhasindex.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relisshared as usize - 1] = pg_row.relisshared.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relpersistence as usize - 1] = pg_row.relpersistence.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relkind as usize - 1] = pg_row.relkind.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relnatts as usize - 1] = pg_row.relnatts.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relchecks as usize - 1] = pg_row.relchecks.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhasrules as usize - 1] = pg_row.relhasrules.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhastriggers as usize - 1] = pg_row.relhastriggers.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhassubclass as usize - 1] = pg_row.relhassubclass.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relrowsecurity as usize - 1] = pg_row.relrowsecurity.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relforcerowsecurity as usize - 1] = pg_row.relforcerowsecurity.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relispopulated as usize - 1] = pg_row.relispopulated.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relreplident as usize - 1] = pg_row.relreplident.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relispartition as usize - 1] = pg_row.relispartition.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relrewrite as usize - 1] = pg_row.relrewrite.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relfrozenxid as usize - 1] = pg_row.relfrozenxid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relminmxid as usize - 1] = pg_row.relminmxid.into_datum().unwrap();
+
+    unsafe{
+        let pg_class = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
+        let indstate = pg_sys::CatalogOpenIndexes(pg_class);
+        let pg_class_tuple_desc = (*pg_class).rd_att;
+
+        let oldtup = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
+
+        if !oldtup.is_null() {
+            let stup = pg_sys::heap_modify_tuple(oldtup, pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr(), replaces.as_mut_ptr());
+            pg_sys::ReleaseSysCache(oldtup);
+            pg_sys::CatalogTupleUpdateWithInfo(pg_class, &mut (*stup).t_self, stup, indstate);
+            pg_sys::heap_freetuple(stup);
+        } else {
+            let stup = pg_sys::heap_form_tuple(pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr());
+            pg_sys::CatalogTupleInsertWithInfo(pg_class, stup, indstate);
+            pg_sys::heap_freetuple(stup);
+        }
+
+        if !indstate.is_null() {
+            pg_sys::CatalogCloseIndexes(indstate);
+        }
+        
+        pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
+    }
+
+    true
 }
 
 
@@ -450,7 +679,7 @@ fn pg_statistic_modify(
     new_value: String,
     new_stavalues: String,
     new_stanums: String,
-) -> Option<String> {
+) -> String {
   // Parse json 
   let mut pg_row: PgStatisticRow = serde_json::from_str(&json_dump).unwrap();
   match statistic_type.as_str() {
@@ -641,7 +870,7 @@ fn pg_statistic_modify(
     _ => panic!("Bad attribute")
   };
   let json_str = serde_json::to_string(&pg_row).unwrap();
-  Some(json_str)
+  json_str
 }
 
 #[pg_extern]
@@ -653,8 +882,6 @@ fn anyarray_elemtype(x: pgrx::AnyArray) -> Option<pg_sys::Oid> {
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {
-    use pgrx::prelude::*;
-
     // #[pg_test]
     // fn test_hello_hypostats() {
     //     assert_eq!("Hello, hypostats", crate::hello_hypostats());
