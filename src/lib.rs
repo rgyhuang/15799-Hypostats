@@ -372,15 +372,58 @@ fn anyarray_elemtype(x: pgrx::AnyArray) -> Option<pg_sys::Oid> {
     // Get the type of the elements of the array using pg_sys.
     unsafe { aarr_elemtype(x.datum().cast_mut_ptr()) }
 }
+#[pg_extern]
+fn hello_hypostats() -> &'static str {
+    "Hello, hypostats"
+}
+
+#[pg_extern] 
+fn get_table_rows() -> Vec<i32> {
+        Spi::run("CREATE TABLE demo_table (value INTEGER);")?;
+        Spi::run("INSERT INTO demo_table (value) VALUES (12), (123), (142);")?;
+        let query = "SELECT * FROM demo_table;";
+        let result = Spi::connect(|client| {
+            let mut results = Vec::new();
+            let mut tup_table = client.select(query, None, None)?;
+    
+            while let Some(row) = tup_table.next() {
+                let num = row["value"].value::<i32>();
+                println!("num: {:?}", num);
+                results.push(num);
+            }
+    
+            Ok(TableIterator::new(results.into_iter()))
+        });
+        let mut res: Vec<i32> = Vec::new();
+        for row in result {
+            println!("row: {:?}", row);
+            res.push(row);
+        }
+
+
+    }
+
 
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {
+    use crate::get_table_rows;
     use pgrx::prelude::*;
 
     #[pg_test]
     fn test_hello_hypostats() {
         assert_eq!("Hello, hypostats", crate::hello_hypostats());
+    }
+
+    #[pg_test]
+    fn basic_insert() -> Result<(), pgrx::spi::Error> {
+        let func_res = get_table_rows()?;
+        
+        
+        
+
+        // assert_eq!(retval, Ok(Some(1)));
+        Ok(())
     }
 }
 
