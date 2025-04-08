@@ -1,3 +1,5 @@
+use core::f32;
+
 // use pg_sys::FormData_pg_statistic;
 // use pg_sys::SysCacheIdentifier::STATRELATTINH;
 use pgrx::pg_sys;
@@ -86,7 +88,7 @@ impl JsonAarr {
                 values[index] = pg_sys::Datum::from(0);
             },
             s => {
-                let datum = match self.typ {
+                let datum: pg_sys::Datum = match self.typ {
                     pg_sys::FLOAT4OID => {
                         let v_f32: Vec<f32> = serde_json::from_str(s).unwrap();
                         Vec::<f32>::into_datum(v_f32).unwrap()
@@ -361,8 +363,88 @@ fn pg_statistic_load(
     true
 }
 
+// Verifies that stavalues have the correct (original) type and has same length as 
+// new stanum
+fn verify_stavalues(typ: pg_sys::Oid, stavalues_as_string: &String, stanum_len: usize) {
+  match typ {
+    pg_sys::FLOAT4OID => {
+        let vec: Vec<f32> = serde_json::from_str(stavalues_as_string).unwrap();
+        if vec.len() != stanum_len {
+          panic!("stanum and stavalues have different lengths");
+        }
+    },
+    pg_sys::FLOAT8OID => {
+        let vec: Vec<f64> = serde_json::from_str(stavalues_as_string).unwrap();
+        if vec.len() != stanum_len {
+          panic!("stanum and stavalues have different lengths");
+        }
+    },
+    pg_sys::INT4OID => {
+        let vec: Vec<i32> = serde_json::from_str(stavalues_as_string).unwrap();
+        if vec.len() != stanum_len {
+          panic!("stanum and stavalues have different lengths");
+        }
+    },
+    pg_sys::INT8OID => {
+        let vec: Vec<i64> = serde_json::from_str(stavalues_as_string).unwrap();
+        if vec.len() != stanum_len {
+          panic!("stanum and stavalues have different lengths");
+        }
+    },
+    _ => panic!("Unsupported type"),
+  }
+}
+
+fn verify_histogram(typ: pg_sys::Oid, stavalues_as_string: &String) {
+  match typ {
+    pg_sys::FLOAT4OID => {
+        let vec: Vec<f32> = serde_json::from_str(stavalues_as_string).unwrap();
+        let mut prev_elem = vec[0];
+        for i in 1..vec.len() { // Any way to clean this up?
+          if vec[i] <= prev_elem {
+            panic!("Histogram bounds must be strictly increasing");
+          }
+          prev_elem = vec[i];
+        }
+    },
+    pg_sys::FLOAT8OID => {
+        let vec: Vec<f64> = serde_json::from_str(stavalues_as_string).unwrap();
+        let mut prev_elem = vec[0];
+        for i in 1..vec.len() {
+          if vec[i] <= prev_elem {
+            panic!("Histogram bounds must be strictly increasing");
+          }
+          prev_elem = vec[i];
+        }
+
+    },
+        pg_sys::INT4OID => {
+        let vec: Vec<i32> = serde_json::from_str(stavalues_as_string).unwrap();
+        let mut prev_elem = vec[0];
+        for i in 1..vec.len() {
+          if vec[i] <= prev_elem {
+            panic!("Histogram bounds must be strictly increasing");
+          }
+          prev_elem = vec[i];
+        }
+
+    },
+    pg_sys::INT8OID => {
+        let vec: Vec<i64> = serde_json::from_str(stavalues_as_string).unwrap();
+        let mut prev_elem = vec[0];
+        for i in 1..vec.len() {
+          if vec[i] <= prev_elem {
+            panic!("Histogram bounds must be strictly increasing");
+          }
+          prev_elem = vec[i];
+        }
+    },
+    _ => panic!("Unsupported type"),
+  }
+}
+
 #[pg_extern]
-fn pg_modify_stats(
+fn pg_statistic_modify(
     json_dump: String,
     statistic_type: String,
     new_value: String,
@@ -373,71 +455,190 @@ fn pg_modify_stats(
   let mut pg_row: PgStatisticRow = serde_json::from_str(&json_dump).unwrap();
   match statistic_type.as_str() {
     "NULLFRAC" => {
-      let new_frac_res = new_value.parse::<f32>();
-      if new_frac_res.is_err() {
-        return None;
-      }
-      pg_row.stanullfrac = new_frac_res.unwrap();
+      let new_frac = new_value.parse::<f32>().unwrap();
+      pg_row.stanullfrac = new_frac;
     },
     "WIDTH" => {
-      let new_width_res = new_value.parse::<i32>();
-      if new_width_res.is_err() {
-        return None;
-      }
-      pg_row.stawidth = new_width_res.unwrap();
+      let new_width = new_value.parse::<i32>().unwrap();
+      pg_row.stawidth = new_width;
     },
     "DISTINCT" => {
-      let new_distinct_res = new_value.parse::<f32>();
-      if new_distinct_res.is_err() {
-        return None;
-      }
-      pg_row.stadistinct = new_distinct_res.unwrap();
+      let new_distinct = new_value.parse::<f32>().unwrap();
+      pg_row.stadistinct = new_distinct;
     },
-    "CORRELATION" => {
-      // Verify new correlation value is a singleton array
-      let new_corr_res = new_stanums.trim_matches(|c| c == '[' || c == ']').parse::<i32>();
-      if !new_stanums.starts_with('[') || !new_stanums.ends_with(']') || 
-            new_corr_res.is_err() || new_corr_res.unwrap().abs() > 1 {
-        return None;
+    "MOST COMMON VALUES" => {
+      let stanumbers: Vec<f32> = serde_json::from_str(&new_stanums).unwrap();
+      let stanum_len = stanumbers.len();
+      // Verify that stanums are all floats and that frequencies are decreasing
+      let total_freq = stanumbers.iter().copied().reduce(|a, b| a + b);
+      if total_freq.is_none() || total_freq.unwrap() > 1.0 {
+        let s = format!("Sum of frequencies must be less than or equal to 1, was {:?}", total_freq);
+        panic!("{}", s);
+      }
+      let mut prev_freq = f32::INFINITY;
+      for freq in stanumbers {
+        if freq > prev_freq {
+          panic!("Frequencies must be decreasing");
+        } 
+        if freq <= 0.0 {
+          panic!("Frequencies must be positive");
+        }
+        prev_freq = freq;
       }
       // Verify correlation is one of the available statistics
-      if pg_row.stakind1 == STATISTIC_KIND_CORRELATION {
+      if pg_row.stakind1 == STATISTIC_KIND_MCV {
         pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind2 == STATISTIC_KIND_CORRELATION {
+        verify_stavalues(pg_row.stavalues1.typ, &new_stavalues, stanum_len);
+        pg_row.stavalues1.data = new_stavalues;
+      } else if pg_row.stakind2 == STATISTIC_KIND_MCV {
         pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind3 == STATISTIC_KIND_CORRELATION {
+        verify_stavalues(pg_row.stavalues2.typ, &new_stavalues, stanum_len);
+        pg_row.stavalues2.data = new_stavalues;
+      } else if pg_row.stakind3 == STATISTIC_KIND_MCV {
         pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind4 == STATISTIC_KIND_CORRELATION {
+        verify_stavalues(pg_row.stavalues3.typ, &new_stavalues, stanum_len);
+        pg_row.stavalues3.data = new_stavalues;
+      } else if pg_row.stakind4 == STATISTIC_KIND_MCV {
         pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind5 == STATISTIC_KIND_CORRELATION {
+        verify_stavalues(pg_row.stavalues4.typ, &new_stavalues, stanum_len);
+        pg_row.stavalues4.data = new_stavalues;
+      } else if pg_row.stakind5 == STATISTIC_KIND_MCV {
         pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+        verify_stavalues(pg_row.stavalues5.typ, &new_stavalues, stanum_len);
+        pg_row.stavalues5.data = new_stavalues;
       } else {
-        return None;
+        panic!("MCV is not a statistic for this column");
       }
     },
-    "RANGE LENGTH" => {
-      // Verify new correlation value is a singleton array
-      let new_corr_res = new_stanums.trim_matches(|c| c == '[' || c == ']').parse::<f64>();
-      if !new_stanums.starts_with('[') || !new_stanums.ends_with(']') || 
-            new_corr_res.is_err() {
-        return None;
-      }
-      // Verify correlation is one of the available statistics
-      if pg_row.stakind1 == STATISTIC_KIND_CORRELATION {
-        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind2 == STATISTIC_KIND_CORRELATION {
-        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind3 == STATISTIC_KIND_CORRELATION {
-        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind4 == STATISTIC_KIND_CORRELATION {
-        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
-      } else if pg_row.stakind5 == STATISTIC_KIND_CORRELATION {
-        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+    "HISTOGRAM" => {
+      if pg_row.stakind1 == STATISTIC_KIND_HISTOGRAM {
+        verify_histogram(pg_row.stavalues1.typ, &new_stavalues);
+        pg_row.stavalues1.data = new_stavalues;
+      } else if pg_row.stakind2 == STATISTIC_KIND_HISTOGRAM {
+        verify_histogram(pg_row.stavalues2.typ, &new_stavalues);
+        pg_row.stavalues2.data = new_stavalues;
+      } else if pg_row.stakind3 == STATISTIC_KIND_HISTOGRAM {
+        verify_histogram(pg_row.stavalues3.typ, &new_stavalues);
+        pg_row.stavalues3.data = new_stavalues;
+      } else if pg_row.stakind4 == STATISTIC_KIND_HISTOGRAM {
+        verify_histogram(pg_row.stavalues4.typ, &new_stavalues);
+        pg_row.stavalues4.data = new_stavalues;
+      } else if pg_row.stakind5 == STATISTIC_KIND_HISTOGRAM {
+        verify_histogram(pg_row.stavalues5.typ, &new_stavalues);
+        pg_row.stavalues5.data = new_stavalues;
       } else {
-        return None;
+        panic!("Histograms are not a statistic for this column");
       }
     }
-    _ => return None
+    "CORRELATION" => {
+      // Verify new correlation value is a singleton array
+      let new_corr_res: Vec<f32> = serde_json::from_str(&new_stanums).unwrap();
+      if new_corr_res.len() != 1 {
+        panic!("Correlation array should be singleton");
+      }
+      if new_corr_res[0].abs() > 1.0 {
+        panic!("Correlation must be between -1 and 1");
+      }
+      // Verify correlation is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind2 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind3 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind4 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind5 == STATISTIC_KIND_CORRELATION {
+        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+      } else {
+        panic!("Correlation is not a statistic for this column");
+      }
+    },
+    "MOST COMMON ELEMENT" => {
+      // Verify that stanums contains an array of floats 
+      let _ : Vec<f32> = serde_json::from_str(&new_stanums).unwrap();
+      // TODO: verify that stavalues is an array of some type
+      // Verify mcelem is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_MCELEM {
+        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues1.data = new_stavalues;
+      } else if pg_row.stakind2 == STATISTIC_KIND_MCELEM {
+        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues2.data = new_stavalues;
+      } else if pg_row.stakind3 == STATISTIC_KIND_MCELEM {
+        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues3.data = new_stavalues;
+      } else if pg_row.stakind4 == STATISTIC_KIND_MCELEM {
+        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues4.data = new_stavalues;
+      } else if pg_row.stakind5 == STATISTIC_KIND_MCELEM {
+        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues5.data = new_stavalues;
+      } else {
+        panic!("Range length histogram is not a statistic for this column");
+      }
+    },
+    "DISTINCT ELEMENT HISTOGRAM" => {
+      let _ : Vec<f32> = serde_json::from_str(&new_stanums).unwrap();
+      // Verify dechist is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_DECHIST {
+        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind2 == STATISTIC_KIND_DECHIST {
+        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind3 == STATISTIC_KIND_DECHIST {
+        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind4 == STATISTIC_KIND_DECHIST {
+        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
+      } else if pg_row.stakind5 == STATISTIC_KIND_DECHIST {
+        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+      } else {
+        panic!("Disticnt element histogram is not a statistic for this column");
+      }
+    }
+    "RANGE LENGTH HISTOGRAM" => {
+      // Verify new range length histogram value is a singleton array
+      let stanums : Vec<f32> = serde_json::from_str(&new_stanums).unwrap();
+      if stanums.len() != 1 {
+        panic!("stanums must have length 1 for range length histogram");
+      }
+      // TODO: Verify new_stavalues
+      // Verify range length histogram is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_RANGE_LENGTH_HISTOGRAM {
+        pg_row.stanumbers1 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues1.data = new_stavalues;
+      } else if pg_row.stakind2 == STATISTIC_KIND_RANGE_LENGTH_HISTOGRAM {
+        pg_row.stanumbers2 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues2.data = new_stavalues;
+      } else if pg_row.stakind3 == STATISTIC_KIND_RANGE_LENGTH_HISTOGRAM {
+        pg_row.stanumbers3 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues3.data = new_stavalues;
+      } else if pg_row.stakind4 == STATISTIC_KIND_RANGE_LENGTH_HISTOGRAM {
+        pg_row.stanumbers4 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues4.data = new_stavalues;
+      } else if pg_row.stakind5 == STATISTIC_KIND_RANGE_LENGTH_HISTOGRAM {
+        pg_row.stanumbers5 = JsonF32arr { data: new_stanums };
+        pg_row.stavalues5.data = new_stavalues;
+      } else {
+        panic!("Range length histogram is not a statistic for this column");
+      }
+    },
+    "KIND BOUNDS HISTOGRAM" => {
+      // Verify kind bounds histogram is one of the available statistics
+      if pg_row.stakind1 == STATISTIC_KIND_BOUNDS_HISTOGRAM {
+        pg_row.stavalues1.data = new_stavalues;
+      } else if pg_row.stakind2 == STATISTIC_KIND_BOUNDS_HISTOGRAM {
+        pg_row.stavalues2.data = new_stavalues;
+      } else if pg_row.stakind3 == STATISTIC_KIND_BOUNDS_HISTOGRAM {
+        pg_row.stavalues3.data = new_stavalues;
+      } else if pg_row.stakind4 == STATISTIC_KIND_BOUNDS_HISTOGRAM {
+        pg_row.stavalues4.data = new_stavalues;
+      } else if pg_row.stakind5 == STATISTIC_KIND_BOUNDS_HISTOGRAM {
+        pg_row.stavalues5.data = new_stavalues;
+      } else {
+        panic!("Disticnt element histogram is not a statistic for this column");
+      }
+    },
+    _ => panic!("Bad attribute")
   };
   let json_str = serde_json::to_string(&pg_row).unwrap();
   Some(json_str)
