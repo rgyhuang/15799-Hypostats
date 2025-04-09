@@ -184,6 +184,32 @@ struct PgClassRow {
   // TODO: add remaining three types: relacl, reloptions, relpartbound
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct PgAttributeRow {
+  attrelid: pg_sys::Oid,
+  attname: String,
+  atttypid: pg_sys::Oid,
+  attstattarget: i32,
+  attlen: i16,
+  attnum: i16,
+  attndims: i32,
+  attcacheoff: i32,
+  atttypmod: i32,
+  attbyval: bool,
+  attstorage: i8,
+  attalign: i8,
+  attnotnull: bool,
+  atthasdef: bool,
+  atthasmissing: bool,
+  attidentity: i8,
+  attgenerated: i8,
+  attisdropped: bool,
+  attislocal: bool,
+  attinhcount: i32,
+  attcollation: pg_sys::Oid,
+  // TODO: add remaining types
+}
+
 unsafe fn aarr_elemtype(aarr: *mut pg_sys::AnyArrayType) -> Option<pg_sys::Oid> {
     if aarr.is_null() {
         None
@@ -226,11 +252,164 @@ fn char_arr_to_string(arr: [i8; 64]) -> String {
 }
 
 #[pg_extern]
+fn pg_attribute_dump(
+  table_oid: i32,
+  column_index: i32
+) -> Option<String> {
+  let result = unsafe {
+        let pg_attribute = pg_sys::table_open(pg_sys::AttributeRelationId, pg_sys::RowExclusiveLock as i32);
+        let tuple = pg_sys::SearchSysCache2(pg_sys::SysCacheIdentifier::ATTNUM as i32, table_oid.into(), column_index.into());
+        let tuple_json = if tuple.is_null() {
+            None
+        } else {
+            let stat_struct = pg_sys::GETSTRUCT(tuple) as *const pg_sys::FormData_pg_attribute;
+
+            let attrelid: pg_sys::Oid = (*stat_struct).attrelid;
+            let attname: String = char_arr_to_string((*stat_struct).attname.data);
+            let atttypid: pg_sys::Oid = (*stat_struct).atttypid;
+            let attstattarget: i32 = (*stat_struct).attstattarget;
+            let attlen: i16 = (*stat_struct).attlen;
+            let attnum: i16 = (*stat_struct).attnum;
+            let attcacheoff: i32 = (*stat_struct).attcacheoff;
+            let attndims: i32 = (*stat_struct).attndims;
+            let atttypmod: i32 = (*stat_struct).atttypmod;
+            let attbyval: bool = (*stat_struct).attbyval;
+            let attstorage: i8 = (*stat_struct).attstorage;
+            let attalign: i8 = (*stat_struct).attalign;
+            let attnotnull: bool = (*stat_struct).attnotnull;
+            let atthasdef: bool = (*stat_struct).atthasdef;
+            let atthasmissing: bool = (*stat_struct).atthasmissing;
+            let attidentity: i8 = (*stat_struct).attidentity;
+            let attgenerated: i8 = (*stat_struct).attgenerated;
+            let attisdropped: bool = (*stat_struct).attisdropped;
+            let attislocal: bool = (*stat_struct).attislocal;
+            let attinhcount: i32 = (*stat_struct).attinhcount;
+            let attcollation: pg_sys::Oid = (*stat_struct).attcollation;
+
+            let pg_row = PgAttributeRow {
+                attrelid,
+                attname,
+                atttypid,
+                attstattarget,
+                attlen,
+                attnum,
+                attndims,
+                attcacheoff,
+                atttypmod,
+                attbyval,
+                attstorage,
+                attalign,
+                attnotnull,
+                atthasdef,
+                atthasmissing,
+                attidentity,
+                attgenerated,
+                attisdropped,
+                attislocal,
+                attinhcount,
+                attcollation,
+            };
+
+            let json_str = serde_json::to_string(&pg_row).unwrap();
+            pg_sys::ReleaseSysCache(tuple);
+            Some(json_str)
+        };
+        pg_sys::table_close(pg_attribute, pg_sys::RowExclusiveLock as i32);
+        tuple_json
+    };
+    result
+}
+
+#[pg_extern]
+fn pg_attribute_load(
+    data: String,
+) -> bool {
+    let pg_row: PgClassRow = serde_json::from_str(&data).unwrap();
+    let table_oid: u32 = pg_row.oid.as_u32();
+
+    let mut values: Vec<pg_sys::Datum> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+    let mut nulls: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+    let mut replaces: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+
+    for _ in 0..pg_sys::Natts_pg_class - 3 {
+        values.push(pg_sys::Datum::from(0));
+        nulls.push(false);
+        replaces.push(true);
+    }
+
+    for _ in 0..3 {
+        values.push(pg_sys::Datum::from(0));
+        nulls.push(true);
+        replaces.push(true);
+    }
+
+    // analyze.c performs a slightly cursed blend of Anum and i++ based accessing.
+    values[pg_sys::Anum_pg_class_oid as usize - 1] = pg_row.oid.into_datum().unwrap();
+    unsafe { 
+      let relname_datum: pg_sys::Datum = string_to_namedata_datum(pg_row.relname);
+      values[pg_sys::Anum_pg_class_relname as usize - 1] = relname_datum; 
+    }
+    values[pg_sys::Anum_pg_class_relnamespace as usize - 1] = pg_row.relnamespace.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_reltype as usize - 1] = pg_row.reltype.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_reloftype as usize - 1] = pg_row.reloftype.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relowner as usize - 1] = pg_row.relowner.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relam as usize - 1] = pg_row.relam.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relfilenode as usize - 1] = pg_row.relfilenode.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_reltablespace as usize - 1] = pg_row.reltablespace.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relpages as usize - 1] = pg_row.relpages.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltuples as usize - 1] = pg_row.reltuples.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relallvisible as usize - 1] = pg_row.relallvisible.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltoastrelid as usize - 1] = pg_row.reltoastrelid.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relhasindex as usize - 1] = pg_row.relhasindex.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relisshared as usize - 1] = pg_row.relisshared.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relpersistence as usize - 1] = pg_row.relpersistence.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relkind as usize - 1] = pg_row.relkind.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relnatts as usize - 1] = pg_row.relnatts.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relchecks as usize - 1] = pg_row.relchecks.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhasrules as usize - 1] = pg_row.relhasrules.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhastriggers as usize - 1] = pg_row.relhastriggers.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relhassubclass as usize - 1] = pg_row.relhassubclass.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relrowsecurity as usize - 1] = pg_row.relrowsecurity.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relforcerowsecurity as usize - 1] = pg_row.relforcerowsecurity.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relispopulated as usize - 1] = pg_row.relispopulated.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relreplident as usize - 1] = pg_row.relreplident.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relispartition as usize - 1] = pg_row.relispartition.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relrewrite as usize - 1] = pg_row.relrewrite.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relfrozenxid as usize - 1] = pg_row.relfrozenxid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relminmxid as usize - 1] = pg_row.relminmxid.into_datum().unwrap();
+
+    let mut inserted_new_tuple = true;
+    unsafe{
+        let pg_class = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
+        let indstate = pg_sys::CatalogOpenIndexes(pg_class);
+        let pg_class_tuple_desc = (*pg_class).rd_att;
+
+        let oldtup = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
+
+        if !oldtup.is_null() { // Can't update an existing table
+            inserted_new_tuple = false;
+        } else {
+            let stup = pg_sys::heap_form_tuple(pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr());
+            pg_sys::CatalogTupleInsertWithInfo(pg_class, stup, indstate);
+            pg_sys::heap_freetuple(stup);
+        }
+
+        if !indstate.is_null() {
+            pg_sys::CatalogCloseIndexes(indstate);
+        }
+        
+        pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
+    }
+
+    inserted_new_tuple
+}
+
+#[pg_extern]
 fn pg_class_dump(
   table_oid: i32,
 ) -> Option<String> {
   let result = unsafe {
-        let pg_statistic = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
+        let pg_class = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
         let tuple = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
         let tuple_json = if tuple.is_null() {
             None
@@ -305,7 +484,7 @@ fn pg_class_dump(
             pg_sys::ReleaseSysCache(tuple);
             Some(json_str)
         };
-        pg_sys::table_close(pg_statistic, pg_sys::RowExclusiveLock as i32);
+        pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
         tuple_json
     };
     result
