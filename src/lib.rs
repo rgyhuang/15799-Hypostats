@@ -324,14 +324,15 @@ fn pg_attribute_dump(
 fn pg_attribute_load(
     data: String,
 ) -> bool {
-    let pg_row: PgClassRow = serde_json::from_str(&data).unwrap();
-    let table_oid: u32 = pg_row.oid.as_u32();
+    let pg_row: PgAttributeRow = serde_json::from_str(&data).unwrap();
+    let table_oid: u32 = pg_row.attrelid.as_u32();
+    let column_index: i16 = pg_row.attnum;
 
-    let mut values: Vec<pg_sys::Datum> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
-    let mut nulls: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
-    let mut replaces: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_class as usize);
+    let mut values: Vec<pg_sys::Datum> = Vec::with_capacity(pg_sys::Natts_pg_attribute as usize);
+    let mut nulls: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_attribute as usize);
+    let mut replaces: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_attribute as usize);
 
-    for _ in 0..pg_sys::Natts_pg_class - 3 {
+    for _ in 0..pg_sys::Natts_pg_attribute - 3 {
         values.push(pg_sys::Datum::from(0));
         nulls.push(false);
         replaces.push(true);
@@ -344,53 +345,44 @@ fn pg_attribute_load(
     }
 
     // analyze.c performs a slightly cursed blend of Anum and i++ based accessing.
-    values[pg_sys::Anum_pg_class_oid as usize - 1] = pg_row.oid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attrelid as usize - 1] = pg_row.attrelid.into_datum().unwrap();
     unsafe { 
-      let relname_datum: pg_sys::Datum = string_to_namedata_datum(pg_row.relname);
-      values[pg_sys::Anum_pg_class_relname as usize - 1] = relname_datum; 
+      let relname_datum: pg_sys::Datum = string_to_namedata_datum(pg_row.attname);
+      values[pg_sys::Anum_pg_attribute_attname as usize - 1] = relname_datum; 
     }
-    values[pg_sys::Anum_pg_class_relnamespace as usize - 1] = pg_row.relnamespace.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_reltype as usize - 1] = pg_row.reltype.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_reloftype as usize - 1] = pg_row.reloftype.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_relowner as usize - 1] = pg_row.relowner.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_relam as usize - 1] = pg_row.relam.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_relfilenode as usize - 1] = pg_row.relfilenode.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_reltablespace as usize - 1] = pg_row.reltablespace.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_relpages as usize - 1] = pg_row.relpages.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_reltuples as usize - 1] = pg_row.reltuples.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relallvisible as usize - 1] = pg_row.relallvisible.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_reltoastrelid as usize - 1] = pg_row.reltoastrelid.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_relhasindex as usize - 1] = pg_row.relhasindex.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relisshared as usize - 1] = pg_row.relisshared.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relpersistence as usize - 1] = pg_row.relpersistence.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relkind as usize - 1] = pg_row.relkind.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relnatts as usize - 1] = pg_row.relnatts.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relchecks as usize - 1] = pg_row.relchecks.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relhasrules as usize - 1] = pg_row.relhasrules.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relhastriggers as usize - 1] = pg_row.relhastriggers.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relhassubclass as usize - 1] = pg_row.relhassubclass.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relrowsecurity as usize - 1] = pg_row.relrowsecurity.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relforcerowsecurity as usize - 1] = pg_row.relforcerowsecurity.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relispopulated as usize - 1] = pg_row.relispopulated.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relreplident as usize - 1] = pg_row.relreplident.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relispartition as usize - 1] = pg_row.relispartition.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relrewrite as usize - 1] = pg_row.relrewrite.into_datum().unwrap_or(pg_sys::Datum::from(0));
-    values[pg_sys::Anum_pg_class_relfrozenxid as usize - 1] = pg_row.relfrozenxid.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relminmxid as usize - 1] = pg_row.relminmxid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_atttypid as usize - 1] = pg_row.atttypid.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_attribute_attstattarget as usize - 1] = pg_row.attstattarget.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attlen as usize - 1] = pg_row.attlen.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attnum as usize - 1] = pg_row.attnum.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attndims as usize - 1] = pg_row.attndims.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attcacheoff as usize - 1] = pg_row.attcacheoff.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_atttypmod as usize - 1] = pg_row.atttypmod.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attbyval as usize - 1] = pg_row.attbyval.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attstorage as usize - 1] = pg_row.attstorage.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attalign as usize - 1] = pg_row.attalign.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attnotnull as usize - 1] = pg_row.attnotnull.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_atthasdef as usize - 1] = pg_row.atthasdef.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_atthasmissing as usize - 1] = pg_row.atthasmissing.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attidentity as usize - 1] = pg_row.attidentity.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attgenerated as usize - 1] = pg_row.attgenerated.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attisdropped as usize - 1] = pg_row.attisdropped.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attislocal as usize - 1] = pg_row.attislocal.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attinhcount as usize - 1] = pg_row.attinhcount.into_datum().unwrap();
+    values[pg_sys::Anum_pg_attribute_attcollation as usize - 1] = pg_row.attcollation.into_datum().unwrap_or(pg_sys::Datum::from(0));
 
     let mut inserted_new_tuple = true;
     unsafe{
-        let pg_class = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
-        let indstate = pg_sys::CatalogOpenIndexes(pg_class);
-        let pg_class_tuple_desc = (*pg_class).rd_att;
+        let pg_attribute = pg_sys::table_open(pg_sys::AttributeRelationId, pg_sys::RowExclusiveLock as i32);
+        let indstate = pg_sys::CatalogOpenIndexes(pg_attribute);
+        let pg_attribute_tuple_desc = (*pg_attribute).rd_att;
 
-        let oldtup = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
+        let oldtup = pg_sys::SearchSysCache2(pg_sys::SysCacheIdentifier::ATTNUM as i32, table_oid.into(), column_index.into());
 
-        if !oldtup.is_null() { // Can't update an existing table
+        if !oldtup.is_null() { // Can't update an existing attribute
             inserted_new_tuple = false;
         } else {
-            let stup = pg_sys::heap_form_tuple(pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr());
-            pg_sys::CatalogTupleInsertWithInfo(pg_class, stup, indstate);
+            let stup = pg_sys::heap_form_tuple(pg_attribute_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr());
+            pg_sys::CatalogTupleInsertWithInfo(pg_attribute, stup, indstate);
             pg_sys::heap_freetuple(stup);
         }
 
@@ -398,7 +390,7 @@ fn pg_attribute_load(
             pg_sys::CatalogCloseIndexes(indstate);
         }
         
-        pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
+        pg_sys::table_close(pg_attribute, pg_sys::RowExclusiveLock as i32);
     }
 
     inserted_new_tuple
