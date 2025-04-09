@@ -1,4 +1,5 @@
 use core::f32;
+use std::mem;
 
 // use pg_sys::FormData_pg_statistic;
 // use pg_sys::SysCacheIdentifier::STATRELATTINH;
@@ -312,15 +313,30 @@ fn pg_class_dump(
 }
 
 // From ChatGPT
-fn string_to_namedata(s: String) -> pg_sys::nameData {
-    let mut arr: [i8; 64] = [0; 64];
+unsafe fn string_to_namedata_datum(s: String) -> pg_sys::Datum {
+    let nd: *mut pg_sys::nameData = pg_sys::palloc(64) as *mut pg_sys::NameData;
     let bytes = s.as_bytes();
     // Truncate if input is too long
-    let len = bytes.len().min(63); // leave space for null terminator if needed
-    for i in 0..len {
-        arr[i] = bytes[i] as i8;
-    }
-    pg_sys::nameData { data: arr }
+    let len = bytes.len().min(63);
+    (*nd).data = [0; 64];
+    std::ptr::copy_nonoverlapping(s.as_ptr(), (*nd).data.as_mut_ptr() as *mut u8, len);
+    std::mem::transmute::<*const pg_sys::nameData, pg_sys::Datum>(nd)
+}
+
+#[pg_extern]
+fn pg_test(
+    data: String,
+) -> Vec<i8> {
+  let pg_row: PgClassRow = serde_json::from_str(&data).unwrap();
+  let mut name_arr: [i8; 64] = [0; 64];
+  let bytes = pg_row.relname.as_bytes();
+  // Truncate if input is too long
+  let len = bytes.len().min(63); // leave space for null terminator if needed
+  for i in 0..len {
+      name_arr[i] = bytes[i] as i8;
+  }
+  let nd: pg_sys::nameData = pg_sys::nameData { data: name_arr };
+  (nd).data.map(i8::from).to_vec()
 }
 
 #[pg_extern]
@@ -348,18 +364,21 @@ fn pg_class_load(
 
     // analyze.c performs a slightly cursed blend of Anum and i++ based accessing.
     values[pg_sys::Anum_pg_class_oid as usize - 1] = pg_row.oid.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relname as usize - 1] = string_to_namedata(pg_row.relname).into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relnamespace as usize - 1] = pg_row.relnamespace.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_reltype as usize - 1] = pg_row.reltype.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_reloftype as usize - 1] = pg_row.reloftype.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relowner as usize - 1] = pg_row.relowner.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relam as usize - 1] = pg_row.relam.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relfilenode as usize - 1] = pg_row.relfilenode.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_reltablespace as usize - 1] = pg_row.reltablespace.into_datum().unwrap();
+    unsafe { 
+      let relname_datum: pg_sys::Datum = string_to_namedata_datum(pg_row.relname);
+      values[pg_sys::Anum_pg_class_relname as usize - 1] = relname_datum; 
+    }
+    values[pg_sys::Anum_pg_class_relnamespace as usize - 1] = pg_row.relnamespace.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_reltype as usize - 1] = pg_row.reltype.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_reloftype as usize - 1] = pg_row.reloftype.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relowner as usize - 1] = pg_row.relowner.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relam as usize - 1] = pg_row.relam.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_relfilenode as usize - 1] = pg_row.relfilenode.into_datum().unwrap_or(pg_sys::Datum::from(0));
+    values[pg_sys::Anum_pg_class_reltablespace as usize - 1] = pg_row.reltablespace.into_datum().unwrap_or(pg_sys::Datum::from(0));
     values[pg_sys::Anum_pg_class_relpages as usize - 1] = pg_row.relpages.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_reltuples as usize - 1] = pg_row.reltuples.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relallvisible as usize - 1] = pg_row.relallvisible.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_reltoastrelid as usize - 1] = pg_row.reltoastrelid.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_reltoastrelid as usize - 1] = pg_row.reltoastrelid.into_datum().unwrap_or(pg_sys::Datum::from(0));
     values[pg_sys::Anum_pg_class_relhasindex as usize - 1] = pg_row.relhasindex.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relisshared as usize - 1] = pg_row.relisshared.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relpersistence as usize - 1] = pg_row.relpersistence.into_datum().unwrap();
@@ -374,7 +393,7 @@ fn pg_class_load(
     values[pg_sys::Anum_pg_class_relispopulated as usize - 1] = pg_row.relispopulated.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relreplident as usize - 1] = pg_row.relreplident.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relispartition as usize - 1] = pg_row.relispartition.into_datum().unwrap();
-    values[pg_sys::Anum_pg_class_relrewrite as usize - 1] = pg_row.relrewrite.into_datum().unwrap();
+    values[pg_sys::Anum_pg_class_relrewrite as usize - 1] = pg_row.relrewrite.into_datum().unwrap_or(pg_sys::Datum::from(0));
     values[pg_sys::Anum_pg_class_relfrozenxid as usize - 1] = pg_row.relfrozenxid.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relminmxid as usize - 1] = pg_row.relminmxid.into_datum().unwrap();
 
@@ -385,11 +404,12 @@ fn pg_class_load(
 
         let oldtup = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
 
-        if !oldtup.is_null() {
-            let stup = pg_sys::heap_modify_tuple(oldtup, pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr(), replaces.as_mut_ptr());
-            pg_sys::ReleaseSysCache(oldtup);
-            pg_sys::CatalogTupleUpdateWithInfo(pg_class, &mut (*stup).t_self, stup, indstate);
-            pg_sys::heap_freetuple(stup);
+        if !oldtup.is_null() { // Can't update an existing table
+            pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
+            if !indstate.is_null() {
+                pg_sys::CatalogCloseIndexes(indstate);
+            }
+            return false;
         } else {
             let stup = pg_sys::heap_form_tuple(pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr());
             pg_sys::CatalogTupleInsertWithInfo(pg_class, stup, indstate);
