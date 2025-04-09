@@ -1,5 +1,4 @@
 use core::f32;
-use std::mem;
 
 // use pg_sys::FormData_pg_statistic;
 // use pg_sys::SysCacheIdentifier::STATRELATTINH;
@@ -397,6 +396,7 @@ fn pg_class_load(
     values[pg_sys::Anum_pg_class_relfrozenxid as usize - 1] = pg_row.relfrozenxid.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relminmxid as usize - 1] = pg_row.relminmxid.into_datum().unwrap();
 
+    let mut inserted_new_tuple = true;
     unsafe{
         let pg_class = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
         let indstate = pg_sys::CatalogOpenIndexes(pg_class);
@@ -405,11 +405,7 @@ fn pg_class_load(
         let oldtup = pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
 
         if !oldtup.is_null() { // Can't update an existing table
-            pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
-            if !indstate.is_null() {
-                pg_sys::CatalogCloseIndexes(indstate);
-            }
-            return false;
+            inserted_new_tuple = false;
         } else {
             let stup = pg_sys::heap_form_tuple(pg_class_tuple_desc, values.as_mut_ptr(), nulls.as_mut_ptr());
             pg_sys::CatalogTupleInsertWithInfo(pg_class, stup, indstate);
@@ -423,7 +419,7 @@ fn pg_class_load(
         pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
     }
 
-    true
+    inserted_new_tuple
 }
 
 
