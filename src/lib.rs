@@ -332,13 +332,13 @@ fn pg_attribute_load(
     let mut nulls: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_attribute as usize);
     let mut replaces: Vec<bool> = Vec::with_capacity(pg_sys::Natts_pg_attribute as usize);
 
-    for _ in 0..pg_sys::Natts_pg_attribute - 3 {
+    for _ in 0..pg_sys::Natts_pg_attribute - 4 {
         values.push(pg_sys::Datum::from(0));
         nulls.push(false);
         replaces.push(true);
     }
 
-    for _ in 0..3 {
+    for _ in 0..4 {
         values.push(pg_sys::Datum::from(0));
         nulls.push(true);
         replaces.push(true);
@@ -567,7 +567,7 @@ fn pg_class_load(
     values[pg_sys::Anum_pg_class_relfrozenxid as usize - 1] = pg_row.relfrozenxid.into_datum().unwrap();
     values[pg_sys::Anum_pg_class_relminmxid as usize - 1] = pg_row.relminmxid.into_datum().unwrap();
 
-    let mut inserted_new_tuple = true;
+    let mut inserted_new_tuple: bool = true;
     unsafe{
         let pg_class = pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
         let indstate = pg_sys::CatalogOpenIndexes(pg_class);
