@@ -24,6 +24,7 @@ Running project
 
 4. When making changes, after compiling must drop the extension and re-add it with
    `DROP EXTENSION hypostats` and `CREATE EXTENSION hypostats`
+5. Run `Select install_size_hook()` and `select remove_size_hook()` to install/drop hook
 
 TESTING
 
