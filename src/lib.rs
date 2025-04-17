@@ -1064,6 +1064,28 @@ fn pg_statistic_modify(
 }
 
 #[pg_extern]
+pub fn spi_return_query(query: String) -> String {
+    Spi::connect(|client| {
+        // let result = client.select(&query, None, &[]);
+        // let mut output: String = String::new();
+
+        // if let Ok(row) = result {
+        //     let num_cols = row.columns().unwrap();
+        //     let mut row_values = Vec::new();
+
+        //     for col in 1..=num_cols {
+        //         let value: Option<String> = row.get(col).unwrap_or(None);
+        //         row_values.push(value.unwrap_or_else(|| "NULL".to_string()));
+        //     }
+
+        //     output = format!("{}\n{}", output, row_values.join(", "));
+        // }
+        // output
+        "abcdef".to_ascii_lowercase()
+    })
+}
+
+#[pg_extern]
 fn anyarray_elemtype(x: pgrx::AnyArray) -> Option<pg_sys::Oid> {
     // Get the type of the elements of the array using pg_sys.
     unsafe { aarr_elemtype(x.datum().cast_mut_ptr()) }
