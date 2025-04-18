@@ -1064,24 +1064,20 @@ fn pg_statistic_modify(
 }
 
 #[pg_extern]
-pub fn spi_return_query(query: String) -> String {
+pub fn spi_return_stats(starelid: i32, staattnum: i32) -> String {
     Spi::connect(|client| {
-        // let result = client.select(&query, None, &[]);
-        // let mut output: String = String::new();
+        let query = format!("SELECT pg_statistic_dump({}, CAST ({} as SMALLINT))", starelid, staattnum);
+        let result = client.select(&query, None, &[]).unwrap();
+        let mut out = String::new();
 
-        // if let Ok(row) = result {
-        //     let num_cols = row.columns().unwrap();
-        //     let mut row_values = Vec::new();
-
-        //     for col in 1..=num_cols {
-        //         let value: Option<String> = row.get(col).unwrap_or(None);
-        //         row_values.push(value.unwrap_or_else(|| "NULL".to_string()));
-        //     }
-
-        //     output = format!("{}\n{}", output, row_values.join(", "));
-        // }
-        // output
-        "abcdef".to_ascii_lowercase()
+        for row in result {
+            for col in 1..=row.columns() {
+                let val: Option<String> = row.get(col).unwrap();
+                out.push_str(&format!("{}\t", val.unwrap_or_else(|| "NULL".to_string())));
+            }
+            out.push('\n');
+        }
+        out
     })
 }
 

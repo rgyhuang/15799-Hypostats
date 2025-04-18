@@ -1,60 +1,35 @@
 extern crate tide;
-use pgrx::Spi;
 use tide::Request;
 use tide::prelude::*;
+use sqlx::PgPool;
 // use hypostats::spi_return_query;
 
 #[derive(Debug, Deserialize)]
-struct Animal {
-    query: String,
-    legs: u16,
+struct StatsDump {
+    starelid: i32,
+    staattnum: i32,
 }
 
-fn spi_return_query(_query: String) -> String {
-    Spi::connect(|_client| {
-        // let result = client.select(&query, None, &[]);
-        // let mut output: String = String::new();
+#[async_std::main]
+async fn main() -> tide::Result<()> {
+    let pool = PgPool::connect("postgres://ekwong@localhost:28813/hypostats").await?;
+    println!("Connected to Postgres!");
 
-        // if let Ok(row) = result {
-        //     let num_cols = row.columns().unwrap();
-        //     let mut row_values = Vec::new();
-
-        //     for col in 1..=num_cols {
-        //         let value: Option<String> = row.get(col).unwrap_or(None);
-        //         row_values.push(value.unwrap_or_else(|| "NULL".to_string()));
-        //     }
-
-        //     output = format!("{}\n{}", output, row_values.join(", "));
-        // }
-        // output
-        "abcdef".to_ascii_lowercase()
-    })
+    let mut app = tide::with_state(pool);
+    app.at("/query").post(handle_stats);
+    app.listen("127.0.0.1:8080").await?;
+    Ok(())
 }
 
-// #[async_std::main]
-// async fn main() -> tide::Result<()> {
-//     let mut app = tide::new();
-//     app.at("/orders/shoes").post(order_shoes);
-//     app.listen("127.0.0.1:8080").await?;
-//     Ok(())
-// }
+async fn handle_stats(mut req: Request<PgPool>) -> tide::Result {
+    let StatsDump { starelid, staattnum } = req.body_json().await?;
+    let pool = req.state();
 
-fn main() {
-  let result = spi_return_query("hello".to_ascii_lowercase());
-  println!("{}", result);
-  // println!("Hello");
-}
+    let query = format!("SELECT spi_return_query({}, {})", starelid, staattnum);
+    // This calls your Rust-defined SQL function inside the pgrx extension!
+    let query_result: (String, ) = sqlx::query_as(&query)
+        .fetch_one(pool)
+        .await?;
 
-// fn order_shoes(mut req: Request<()>) -> tide::Result {
-//     let Animal { query, legs } = req.body_json();
-//     let query_result: String = spi_return_query(query);
-//     // let query_result = query;
-//     Ok(format!("Result is: {}, legs: {}\n", query_result, legs).into())
-// }
-
-async fn order_shoes(mut req: Request<()>) -> tide::Result {
-    let Animal { query, legs } = req.body_json().await?;
-    let query_result: String = spi_return_query(query);
-    // let query_result = query;
-    Ok(format!("Result is: {}, legs: {}\n", query_result, legs).into())
+    Ok(query_result.0.into()) // Return the result as text
 }
