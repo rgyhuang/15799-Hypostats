@@ -26,10 +26,12 @@ Running project
    `DROP EXTENSION hypostats` and `CREATE EXTENSION hypostats`
 5. Run `Select install_size_hook()` and `select remove_size_hook()` to install/drop hook
 
-TESTING
+Running backend server
 
-- Find column in pg_statistic that we want to modify
-- Get the json dump with pg_statistic_dump
-- Modify the attribute with pg_modify_stats
-- Take the new json dump and load with pg_statistic_load
-- Verify the statistic is updated
+1. Modify the postgres connection in the main function of main.rs to connect
+   To find the correct port, you can run `cargo pgrx run` and it will say: Starting
+   Postgres vXXX on port XXX
+   To find the username, run `\du` in the Postgres terminal
+2. Run `cargo run --bin hypostats` to get the backend up
+3. Make http requests from localhost on port 8080 like so to get pg_statistic dumps:
+   curl localhost:8080/query -d '{ "starelid": 41281, "staattnum": 1 }'

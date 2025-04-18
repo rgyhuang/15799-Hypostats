@@ -1344,6 +1344,24 @@ fn pg_statistic_modify(
 }
 
 #[pg_extern]
+pub fn spi_return_stats(starelid: i32, staattnum: i32) -> String {
+    Spi::connect(|client| {
+        let query = format!("SELECT pg_statistic_dump({}, CAST ({} as SMALLINT))", starelid, staattnum);
+        let result = client.select(&query, None, &[]).unwrap();
+        let mut out = String::new();
+
+        for row in result {
+            for col in 1..=row.columns() {
+                let val: Option<String> = row.get(col).unwrap();
+                out.push_str(&format!("{}\t", val.unwrap_or_else(|| "NULL".to_string())));
+            }
+            out.push('\n');
+        }
+        out
+    })
+}
+
+#[pg_extern]
 fn anyarray_elemtype(x: pgrx::AnyArray) -> Option<pg_sys::Oid> {
     // Get the type of the elements of the array using pg_sys.
     unsafe { aarr_elemtype(x.datum().cast_mut_ptr()) }
