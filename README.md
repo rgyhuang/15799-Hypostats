@@ -29,9 +29,12 @@ Running project
 Running backend server
 
 1. Modify the postgres connection in the main function of main.rs to connect
-   To find the correct port, you can run `cargo pgrx run` and it will say: Starting
-   Postgres vXXX on port XXX
-   To find the username, run `\du` in the Postgres terminal
+   - To find the correct port, you can run `cargo pgrx run` and it will say: Starting
+     Postgres vXXX on port XXX
+   - To find the username, run `\du` in the Postgres terminal
 2. Run `cargo run --bin hypostats` to get the backend up
 3. Make http requests from localhost on port 8080 like so to get pg_statistic dumps:
-   curl localhost:8080/query -d '{ "starelid": 41281, "staattnum": 1 }'
+   - curl localhost:8080/query -d '{ "starelid": 41281, "staattnum": 1 }'
+4. When testing the load API, run curl with the -g flag to allow for the nested brackets
+5. If any updates are made to lib.rs, make sure to drop the extension and create it
+   again before building again

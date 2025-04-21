@@ -426,7 +426,6 @@ fn pg_attribute_load(data: String) -> bool {
         .into_datum()
         .unwrap_or(pg_sys::Datum::from(0));
 
-    let mut inserted_new_tuple = true;
     unsafe {
         let pg_attribute =
             pg_sys::table_open(pg_sys::AttributeRelationId, pg_sys::RowExclusiveLock as i32);
@@ -440,8 +439,7 @@ fn pg_attribute_load(data: String) -> bool {
         );
 
         if !oldtup.is_null() {
-            // Can't update an existing attribute
-            inserted_new_tuple = false;
+            return true;
         } else {
             let stup = pg_sys::heap_form_tuple(
                 pg_attribute_tuple_desc,
@@ -459,7 +457,7 @@ fn pg_attribute_load(data: String) -> bool {
         pg_sys::table_close(pg_attribute, pg_sys::RowExclusiveLock as i32);
     }
 
-    inserted_new_tuple
+    true
 }
 
 #[pg_extern]
@@ -677,8 +675,6 @@ fn pg_class_load(data: String) -> bool {
             pg_sys::SearchSysCache1(pg_sys::SysCacheIdentifier::RELOID as i32, table_oid.into());
 
         if !oldtup.is_null() {
-            // Can't update an existing table
-            // inserted_new_tuple = false;
             let stup = pg_sys::heap_modify_tuple(
                 oldtup,
                 pg_class_tuple_desc,
@@ -1344,9 +1340,8 @@ fn pg_statistic_modify(
 }
 
 #[pg_extern]
-pub fn spi_return_stats(starelid: i32, staattnum: i32) -> String {
+pub fn spi_query(query: String) -> String {
     Spi::connect(|client| {
-        let query = format!("SELECT pg_statistic_dump({}, CAST ({} as SMALLINT))", starelid, staattnum);
         let result = client.select(&query, None, &[]).unwrap();
         let mut out = String::new();
 
