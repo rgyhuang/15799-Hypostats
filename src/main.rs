@@ -1,7 +1,8 @@
 extern crate tide;
-use tide::Request;
-use tide::prelude::*;
+use tide::{Request, prelude::*};
 use sqlx::{FromRow, postgres::PgRow, Row, PgPool};
+use http_types::headers::HeaderValue;
+use tide::security::{CorsMiddleware, Origin};
 
 #[derive(Debug, Deserialize)]
 struct TableInfo {
@@ -40,6 +41,12 @@ async fn main() -> tide::Result<()> {
     println!("Connected to Postgres!");
 
     let mut app = tide::with_state(pool);
+    let cors = CorsMiddleware::new()
+        .allow_methods("GET, POST, OPTIONS".parse::<HeaderValue>().unwrap())
+        .allow_origin(Origin::from("*"))
+        .allow_credentials(false);
+
+    app.with(cors);
     app.at("/explain").post(test);
     app.at("/export").post(table_dump);
     app.at("/load").post(table_load);
