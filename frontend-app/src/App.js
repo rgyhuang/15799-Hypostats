@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import ClassTable from "./components/class-info";
+import ColumnTabs from "./components/stats-info";
 
 export default function FormWithGetRequest() {
   const [query, setQuery] = useState("");
@@ -6,7 +8,6 @@ export default function FormWithGetRequest() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("got called lol");
     try {
       const response = await fetch("http://localhost:8080/export", {
         method: "POST",
@@ -16,11 +17,9 @@ export default function FormWithGetRequest() {
         body: JSON.stringify({ relname: query }),
       });
       const data = await response.json();
-      console.log(data);
       setResult(data);
-    } catch (error) {
-      console.error("Fetch error:", error);
-    }
+      // console.log(data, typeof JSON.parse(data["stats_info"]));
+    } catch (error) {}
   };
 
   return (
@@ -39,7 +38,10 @@ export default function FormWithGetRequest() {
         </button>
       </form>
       {result && (
-        <pre className="result">{JSON.stringify(result, null, 2)}</pre>
+        <div className="results-container">
+          <ClassTable data={JSON.parse(result["class_info"])} />
+          <ColumnTabs statsArray={result["stats_info"]} />
+        </div>
       )}
     </div>
   );
