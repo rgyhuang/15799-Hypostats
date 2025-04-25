@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import ClassTable from "./components/class-info";
 import ColumnTabs from "./components/stats-info";
+import ImportExportButton from "./components/import-export";
 
 export default function FormWithGetRequest() {
   const [query, setQuery] = useState("");
@@ -36,6 +37,7 @@ export default function FormWithGetRequest() {
         <button type="submit" className="button">
           Search
         </button>
+        <ImportExportButton relname={query} />
       </form>
       {result && (
         <div className="results-container">
