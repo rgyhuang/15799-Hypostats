@@ -5,8 +5,8 @@ import sanitizeStats from "./utils";
 import "./stats-info.css";
 
 function createTab(s) {
-  let stat = JSON.parse(s);
-  let columnId = stat["staattnum"];
+  let stats = JSON.parse(s);
+  let columnId = stats["staattnum"];
   return (
     <Tab
       className="header"
@@ -16,10 +16,11 @@ function createTab(s) {
     >
       <Table striped bordered hover variant="dark" responsive>
         <tbody>
-          {Object.entries(stat).map(([k, v]) => (
-            <tr>
+          {console.log(sanitizeStats(stats))}
+          {[...sanitizeStats(stats).entries()].map(([k, v], idx) => (
+            <tr key={k}>
               <th>{k}</th>
-              <th>{JSON.stringify(v)}</th>
+              <th>{v}</th>
             </tr>
           ))}
         </tbody>
@@ -32,7 +33,7 @@ function ColumnTabs({ statsArray }) {
   console.log(statsArray, typeof statsArray);
   return (
     <div className="right-div">
-      <Tabs defaultActiveKey="profile" className="mb-3">
+      <Tabs defaultActiveKey="1" className="mb-3">
         {statsArray.map((s) => createTab(s))}
       </Tabs>
     </div>
