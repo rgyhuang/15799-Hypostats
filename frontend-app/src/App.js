@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import ClassTable from "./components/class-info";
 import ColumnTabs from "./components/stats-info";
 import ImportExportButton from "./components/import-export";
+// export current instance
 
 export default function FormWithGetRequest() {
   const [query, setQuery] = useState("");
