@@ -1,4 +1,5 @@
 import Table from "react-bootstrap/Table";
+import Histogram from "./histogram";
 
 function sanitizeStats(stats) {
   const cleanStats = new Map();
@@ -35,6 +36,14 @@ function sanitizeStats(stats) {
           cleanStats.set("Most Common Values", valuesTable);
           break;
         case 2:
+          console.log("stavalues is", stavalues);
+          let histogram = (
+            <Histogram width={500} height={300} data={stavalues} />
+          );
+          cleanStats.set(
+            "Data Histogram (excluding most common values)",
+            histogram
+          );
           break;
         case 3:
           cleanStats.set("Correlation", stanumbers[0]);

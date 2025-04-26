@@ -16,7 +16,6 @@ function createTab(s) {
     >
       <Table striped bordered hover variant="dark" responsive>
         <tbody>
-          {console.log(sanitizeStats(stats))}
           {[...sanitizeStats(stats).entries()].map(([k, v], idx) => (
             <tr key={k}>
               <th>{k}</th>
@@ -30,7 +29,6 @@ function createTab(s) {
 }
 
 function ColumnTabs({ statsArray }) {
-  console.log(statsArray, typeof statsArray);
   return (
     <div className="right-div">
       <Tabs defaultActiveKey="1" className="mb-3">

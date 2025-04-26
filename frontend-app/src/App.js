@@ -18,7 +18,6 @@ export default function FormWithGetRequest() {
       });
       const data = await response.json();
       setResult(data);
-      // console.log(data, typeof JSON.parse(data["stats_info"]));
     } catch (error) {}
   };
 
