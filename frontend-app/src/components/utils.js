@@ -6,6 +6,7 @@ function sanitizeStats(stats) {
   cleanStats.set("Null Fraction", stats["stanullfrac"]);
   cleanStats.set("Average Entry Width (bytes)", stats["stawidth"]);
   cleanStats.set("Distinct Elements", stats["stadistinct"]);
+  let sumMCVFreqs = 0;
 
   for (let i = 1; i <= 5; i++) {
     let stakind = stats["stakind" + i];
@@ -33,15 +34,23 @@ function sanitizeStats(stats) {
               </tbody>
             </Table>
           );
+          sumMCVFreqs = stanumbers.reduce(
+            (accumulator, currentValue) => accumulator + currentValue,
+            0
+          );
           cleanStats.set("Most Common Values", valuesTable);
           break;
         case 2:
-          console.log("stavalues is", stavalues);
           let histogram = (
-            <Histogram width={500} height={300} data={stavalues} />
+            <Histogram
+              width={500}
+              height={200}
+              data={stavalues}
+              yValue={(1 - sumMCVFreqs) / (stavalues.length - 1)}
+            />
           );
           cleanStats.set(
-            "Data Histogram (excluding most common values)",
+            "Value Histogram (excluding Most Common Values)",
             histogram
           );
           break;
@@ -68,6 +77,9 @@ function sanitizeStats(stats) {
             </Table>
           );
           cleanStats.set("Most Common Elements", elementsTable);
+          break;
+        case 5:
+          console.log("stanumbers is", stanumbers);
           break;
         default:
           break;

@@ -1,84 +1,61 @@
-// Histogram code modified from: https://www.react-graph-gallery.com/histogram
-
-import { useEffect, useMemo, useRef } from "react";
 import * as d3 from "d3";
+import AxisBottom from "./AxisBottom";
+import AxisLeft from "./AxisLeft";
 
-const MARGIN = { top: 30, right: 30, bottom: 40, left: 50 };
-const BUCKET_PADDING = 0;
+const MARGIN = { top: 30, right: 30, bottom: 50, left: 50 };
 
-function Histogram({ width, height, data }) {
-  const BUCKET_NUMBER = data.length;
-  const axesRef = useRef(null);
+export default function Histogram({ width, height, data, yValue }) {
+  // Layout. The div size is set by the given props.
+  // The bounds (=area inside the axis) is calculated by substracting the margins
   const boundsWidth = width - MARGIN.right - MARGIN.left;
   const boundsHeight = height - MARGIN.top - MARGIN.bottom;
+  const BUCKET_PADDING = 4;
 
-  const xScale = useMemo(() => {
-    const max = Math.max(...data);
-    return d3
-      .scaleLinear()
-      .domain([0, max]) // note: limiting to 1000 instead of max here because of extreme values in the dataset
-      .range([10, boundsWidth]);
-  }, [data, width]);
+  // Compute the scales (usually done using the dataset as input)
+  const xScale = d3
+    .scaleLinear()
+    .domain([0, data.length - 1])
+    .range([0, boundsWidth]);
+  const yScale = d3.scaleLinear().domain([0, 1]).range([boundsHeight, 0]);
+  const yValues = [0, yValue.toFixed(2)];
 
-  const buckets = useMemo(() => {
-    const bucketGenerator = d3
-      .bin()
-      .value((d) => d)
-      .domain(xScale.domain())
-      .thresholds(xScale.ticks(BUCKET_NUMBER));
-    return bucketGenerator(data);
-  }, [xScale]);
-
-  const yScale = useMemo(() => {
-    const max = Math.max(...buckets.map((bucket) => bucket?.length));
-    return d3.scaleLinear().range([boundsHeight, 0]).domain([0, max]).nice();
-  }, [data, height]);
-
-  // Render the X axis using d3.js, not react
-  useEffect(() => {
-    const svgElement = d3.select(axesRef.current);
-    svgElement.selectAll("*").remove();
-
-    const xAxisGenerator = d3.axisBottom(xScale);
-    svgElement
-      .append("g")
-      .attr("transform", "translate(0," + boundsHeight + ")")
-      .call(xAxisGenerator);
-
-    const yAxisGenerator = d3.axisLeft(yScale);
-    svgElement.append("g").call(yAxisGenerator);
-  }, [xScale, yScale, boundsHeight]);
-
-  const allRects = buckets.map((bucket, i) => {
-    return (
+  const bucketWidth = boundsWidth / (data.length - 1);
+  let allRects = [];
+  for (let i = 0; i < data.length - 1; i++) {
+    allRects.push(
       <rect
         key={i}
         fill="#69b3a2"
-        x={xScale(bucket.x0) + BUCKET_PADDING / 2}
-        width={xScale(bucket.x1) - xScale(bucket.x0)}
-        y={yScale(bucket.length)}
-        height={boundsHeight - yScale(bucket.length)}
+        stroke="black"
+        x={i * bucketWidth + BUCKET_PADDING / 2}
+        width={bucketWidth - BUCKET_PADDING}
+        y={0}
+        height={boundsHeight}
       />
     );
-  });
+  }
 
   return (
-    <svg width={width} height={height}>
-      <g
-        width={boundsWidth}
-        height={boundsHeight}
-        transform={`translate(${[MARGIN.left, MARGIN.top].join(",")})`}
-      >
-        {allRects}
-      </g>
-      <g
-        width={boundsWidth}
-        height={boundsHeight}
-        ref={axesRef}
-        transform={`translate(${[MARGIN.left, MARGIN.top].join(",")})`}
-      />
-    </svg>
+    <div>
+      <svg width={width} height={height} shapeRendering={"crispEdges"}>
+        <g
+          width={boundsWidth}
+          height={boundsHeight}
+          transform={`translate(${[MARGIN.left, MARGIN.top].join(",")})`}
+          overflow={"visible"}
+        >
+          {/* graph content */}
+          {allRects}
+
+          {/* Y axis */}
+          <AxisLeft yScale={yScale} yValues={yValues} />
+
+          {/* X axis, use an additional translation to appear at the bottom */}
+          <g transform={`translate(0, ${boundsHeight})`}>
+            <AxisBottom xScale={xScale} bounds={data} />
+          </g>
+        </g>
+      </svg>
+    </div>
   );
 }
-
-export default Histogram;
