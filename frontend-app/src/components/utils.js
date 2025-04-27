@@ -1,10 +1,12 @@
 import Table from "react-bootstrap/Table";
+import Histogram from "./histogram";
 
 function sanitizeStats(stats) {
   const cleanStats = new Map();
   cleanStats.set("Null Fraction", stats["stanullfrac"]);
   cleanStats.set("Average Entry Width (bytes)", stats["stawidth"]);
   cleanStats.set("Distinct Elements", stats["stadistinct"]);
+  let sumMCVFreqs = 0;
 
   for (let i = 1; i <= 5; i++) {
     let stakind = stats["stakind" + i];
@@ -32,9 +34,25 @@ function sanitizeStats(stats) {
               </tbody>
             </Table>
           );
+          sumMCVFreqs = stanumbers.reduce(
+            (accumulator, currentValue) => accumulator + currentValue,
+            0
+          );
           cleanStats.set("Most Common Values", valuesTable);
           break;
         case 2:
+          let histogram = (
+            <Histogram
+              width={500}
+              height={200}
+              data={stavalues}
+              yValue={(1 - sumMCVFreqs) / (stavalues.length - 1)}
+            />
+          );
+          cleanStats.set(
+            "Value Histogram (excluding Most Common Values)",
+            histogram
+          );
           break;
         case 3:
           cleanStats.set("Correlation", stanumbers[0]);
@@ -59,6 +77,9 @@ function sanitizeStats(stats) {
             </Table>
           );
           cleanStats.set("Most Common Elements", elementsTable);
+          break;
+        case 5:
+          console.log("stanumbers is", stanumbers);
           break;
         default:
           break;
