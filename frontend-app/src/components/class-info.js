@@ -1,8 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import Table from "react-bootstrap/Table";
+import Dropdown from "react-bootstrap/Dropdown";
+import DropdownButton from "react-bootstrap/DropdownButton";
 import "./class-info.css";
 
-function ClassTable({ data }) {
+export default function ClassTable({ data }) {
+  const [attribute, setAttribute] = useState("");
+
   return (
     <div className="left-div">
       <h3>Table Information</h3>
@@ -27,20 +31,32 @@ function ClassTable({ data }) {
             <th>{data["reltuples"]}</th>
           </tr>
           <tr>
-            <th colSpan={2}>Query pg_class Attribute</th>
+            <th colSpan={2}>
+              <DropdownButton
+                key="primary"
+                id="dropdown-variants-primary"
+                title="Query pg_class Attribute"
+                variant="primary"
+                data-bs-theme="dark"
+              >
+                {Object.entries(data).map(([k, v]) => (
+                  <Dropdown.Item onClick={() => setAttribute(k)}>
+                    {k}
+                  </Dropdown.Item>
+                ))}
+              </DropdownButton>
+            </th>
           </tr>
-        </tbody>
-        {/* <tbody>
-          {Object.entries(data).map(([k, v]) => (
+          {attribute == "" ? (
+            <></>
+          ) : (
             <tr>
-              <th>{k}</th>
-              <th>{JSON.stringify(v)}</th>
+              <th>{attribute}</th>
+              <th>{JSON.stringify(data[attribute])}</th>
             </tr>
-          ))}
-        </tbody> */}
+          )}
+        </tbody>
       </Table>
     </div>
   );
 }
-
-export default ClassTable;
