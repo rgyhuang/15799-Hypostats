@@ -10,7 +10,6 @@ function ImportExportButton({ relname }) {
       reader.onload = async (event) => {
         try {
           const content = event.target.result;
-          console.log(content);
           const response = await fetch("http://localhost:8080/load", {
             method: "POST",
             headers: {
@@ -19,7 +18,6 @@ function ImportExportButton({ relname }) {
             body: content,
           });
           const result = await response.json();
-          console.log(result);
         } catch (error) {
           console.error("Error uploading file:", error);
         }
@@ -55,9 +53,7 @@ function ImportExportButton({ relname }) {
   return (
     <>
       <div className="input-group"></div>
-      {/* <button className="themed-button" onClick={handleExport}> */}
       <input id="file" type="file" onChange={handleImport} />
-      {/* </button> */}
 
       <button className="themed-button" onClick={handleExport}>
         Export

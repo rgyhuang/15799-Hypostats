@@ -32,19 +32,18 @@ export default function ClassTable({ data }) {
           </tr>
           <tr>
             <th colSpan={2}>
-              <DropdownButton
-                key="primary"
-                id="dropdown-variants-primary"
-                title="Query pg_class Attribute"
-                variant="primary"
-                data-bs-theme="dark"
-              >
-                {Object.entries(data).map(([k, v]) => (
-                  <Dropdown.Item onClick={() => setAttribute(k)}>
-                    {k}
-                  </Dropdown.Item>
-                ))}
-              </DropdownButton>
+              <Dropdown data-bs-theme="dark">
+                <Dropdown.Toggle variant="primary" id="dropdown-basic">
+                  Query pg_class Attribute
+                </Dropdown.Toggle>
+                <Dropdown.Menu className="scrollable-menu">
+                  {Object.entries(data).map(([k, v]) => (
+                    <Dropdown.Item onClick={() => setAttribute(k)}>
+                      {k}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown>
             </th>
           </tr>
           {attribute == "" ? (
