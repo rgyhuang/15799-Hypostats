@@ -1,0 +1,18 @@
+.left-div {
+  width: 33%;
+  border-collapse: collapse;
+  border-radius: 10px;
+  background-color: rgb(180, 182, 240);
+  padding: 20px;
+
+  table th,
+  table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+
+  .scrollable-menu {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
