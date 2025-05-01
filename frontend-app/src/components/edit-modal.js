@@ -119,7 +119,6 @@ export default function EditModal({
         <Button
           onClick={() => {
             let editedStat = stats;
-            console.log("editedStat is", editedStat);
             if (isStakind) {
               editedStat["stanumbers" + whichStakind]["data"] =
                 stanumbersString;
