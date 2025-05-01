@@ -9,7 +9,7 @@ export default function Histogram({ width, height, data, yValue }) {
   // The bounds (=area inside the axis) is calculated by substracting the margins
   const boundsWidth = width - MARGIN.right - MARGIN.left;
   const boundsHeight = height - MARGIN.top - MARGIN.bottom;
-  const BUCKET_PADDING = 4;
+  const BUCKET_PADDING = 0;
 
   // Compute the scales (usually done using the dataset as input)
   const xScale = d3

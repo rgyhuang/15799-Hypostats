@@ -37,12 +37,12 @@ export default function FormWithGetRequest() {
         <button type="submit" className="button">
           Search
         </button>
-        <ImportExportButton relname={query} />
+        <ImportExportButton relname={query} stats={result} />
       </form>
       {result && (
         <div className="results-container">
           <ClassTable data={JSON.parse(result["class_info"])} />
-          <ColumnTabs statsArray={result["stats_info"]} />
+          <ColumnTabs statsArray={result["stats_info"]} stats={result} />
         </div>
       )}
     </div>
