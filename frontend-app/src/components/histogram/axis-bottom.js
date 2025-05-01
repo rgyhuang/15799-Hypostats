@@ -12,7 +12,7 @@ export default function AxisBottom({ xScale, bounds, small }) {
       value,
       xOffset: xScale(value),
     }));
-  }, [xScale]);
+  }, [xScale, bounds.length]);
 
   return (
     <>
