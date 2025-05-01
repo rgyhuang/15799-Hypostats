@@ -3,15 +3,21 @@ import Histogram from "./histogram";
 
 function sanitizeStats(stats) {
   const cleanStats = new Map();
-  cleanStats.set("Null Fraction", stats["stanullfrac"]);
-  cleanStats.set("Average Entry Width (bytes)", stats["stawidth"]);
-  cleanStats.set("Distinct Elements", stats["stadistinct"]);
+  cleanStats.set("Null Fraction", [stats["stanullfrac"], "stanullfrac"]);
+  cleanStats.set("Average Entry Width (bytes)", [
+    stats["stawidth"],
+    "stawidth",
+  ]);
+  cleanStats.set("Distinct Elements", [stats["stadistinct"], "stadistinct"]);
   let sumMCVFreqs = 0;
 
   for (let i = 1; i <= 5; i++) {
-    let stakind = stats["stakind" + i];
-    let stavalues = JSON.parse(stats["stavalues" + i]["data"]);
-    let stanumbers = JSON.parse(stats["stanumbers" + i]["data"]);
+    const stakindStr = "stakind" + i;
+    const stavaluesStr = "stavalues" + i;
+    const stanumbersStr = "stanumbers" + i;
+    const stakind = stats[stakindStr];
+    const stavalues = JSON.parse(stats[stavaluesStr]["data"]);
+    const stanumbers = JSON.parse(stats[stanumbersStr]["data"]);
     if (stakind > 0) {
       switch (stakind) {
         case 1:
@@ -38,7 +44,7 @@ function sanitizeStats(stats) {
             (accumulator, currentValue) => accumulator + currentValue,
             0
           );
-          cleanStats.set("Most Common Values", valuesTable);
+          cleanStats.set("Most Common Values", [valuesTable, stakindStr]);
           break;
         case 2:
           let histogram = (
@@ -49,13 +55,13 @@ function sanitizeStats(stats) {
               yValue={(1 - sumMCVFreqs) / (stavalues.length - 1)}
             />
           );
-          cleanStats.set(
-            "Value Histogram (excluding Most Common Values)",
-            histogram
-          );
+          cleanStats.set("Value Histogram (excluding Most Common Values)", [
+            histogram,
+            stakindStr,
+          ]);
           break;
         case 3:
-          cleanStats.set("Correlation", stanumbers[0]);
+          cleanStats.set("Correlation", [stanumbers[0], stakindStr]);
           break;
         case 4:
           let elementsTable = (
@@ -76,10 +82,7 @@ function sanitizeStats(stats) {
               </tbody>
             </Table>
           );
-          cleanStats.set("Most Common Elements", elementsTable);
-          break;
-        case 5:
-          console.log("stanumbers is", stanumbers);
+          cleanStats.set("Most Common Elements", [elementsTable, stakindStr]);
           break;
         default:
           break;

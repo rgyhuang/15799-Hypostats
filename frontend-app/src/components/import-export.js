@@ -1,7 +1,7 @@
 import "./import-export.css";
 import React from "react";
 
-function ImportExportButton({ relname }) {
+function ImportExportButton({ relname, stats }) {
   const handleImport = (e) => {
     const file = e.target.files[0];
     console.log(file);
@@ -50,6 +50,32 @@ function ImportExportButton({ relname }) {
     } catch (error) {}
   };
 
+  const downloadFile = ({ data, fileName, fileType }) => {
+    // Create a blob with the data we want to download as a file
+    const blob = new Blob([data], { type: fileType });
+    // Create an anchor element and dispatch a click event on it
+    // to trigger a download
+    const a = document.createElement("a");
+    a.download = fileName;
+    a.href = window.URL.createObjectURL(blob);
+    const clickEvt = new MouseEvent("click", {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+    });
+    a.dispatchEvent(clickEvt);
+    a.remove();
+  };
+
+  const handleDownload = (e) => {
+    e.preventDefault();
+    downloadFile({
+      data: JSON.stringify(stats),
+      fileName: "pg_export.json",
+      fileType: "text/json",
+    });
+  };
+
   return (
     <>
       <div className="input-group"></div>
@@ -57,6 +83,9 @@ function ImportExportButton({ relname }) {
 
       <button className="themed-button" onClick={handleExport}>
         Export
+      </button>
+      <button className="themed-button" onClick={handleDownload}>
+        Download
       </button>
     </>
   );

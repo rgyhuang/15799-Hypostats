@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import Table from "react-bootstrap/Table";
 import Dropdown from "react-bootstrap/Dropdown";
-import DropdownButton from "react-bootstrap/DropdownButton";
 import "./class-info.css";
 
 export default function ClassTable({ data }) {
@@ -38,7 +37,7 @@ export default function ClassTable({ data }) {
                 </Dropdown.Toggle>
                 <Dropdown.Menu className="scrollable-menu">
                   {Object.entries(data).map(([k, v]) => (
-                    <Dropdown.Item onClick={() => setAttribute(k)}>
+                    <Dropdown.Item key={k} onClick={() => setAttribute(k)}>
                       {k}
                     </Dropdown.Item>
                   ))}
@@ -46,7 +45,7 @@ export default function ClassTable({ data }) {
               </Dropdown>
             </th>
           </tr>
-          {attribute == "" ? (
+          {attribute === "" ? (
             <></>
           ) : (
             <tr>
