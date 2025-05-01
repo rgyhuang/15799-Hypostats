@@ -21,9 +21,4 @@
     max-height: 300px;
     overflow-y: auto;
   }
-
-  .editButton {
-    padding: 0px 5px;
-    margin-left: 10px;
-  }
 }

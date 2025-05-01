@@ -5,6 +5,13 @@
   background-color: rgb(180, 182, 240);
   padding: 20px;
 
+  button {
+    border: 0px;
+    background-color: rgb(101, 105, 204);
+    color: white;
+    font-weight: bold;
+  }
+
   table th,
   table td {
     border: 1px solid #ddd;

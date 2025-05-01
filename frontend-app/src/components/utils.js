@@ -1,7 +1,13 @@
 import Table from "react-bootstrap/Table";
-import Histogram from "./histogram";
+import HistogramWrapper from "./histogram/histogram-wrapper";
 
-function sanitizeStats(stats) {
+function sanitizeStats(
+  stats,
+  histoModalState,
+  showHistoModal,
+  hideHistoModal,
+  idx
+) {
   const cleanStats = new Map();
   cleanStats.set("Null Fraction", [stats["stanullfrac"], "stanullfrac"]);
   cleanStats.set("Average Entry Width (bytes)", [
@@ -50,11 +56,15 @@ function sanitizeStats(stats) {
           break;
         case 2:
           let histogram = (
-            <Histogram
+            <HistogramWrapper
               width={500}
               height={200}
               data={stavalues}
               yValue={(1 - sumMCVFreqs) / (stavalues.length - 1)}
+              idx={idx}
+              histoModalState={histoModalState}
+              showHistoModal={showHistoModal}
+              hideHistoModal={hideHistoModal}
             />
           );
           cleanStats.set("Value Histogram (excluding Most Common Values)", [
