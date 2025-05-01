@@ -8,16 +8,23 @@ import EditModal from "./edit-modal";
 import "./stats-info.css";
 
 function CreateTab(
-  s,
+  stats,
   fullStats,
   editStat,
   setEditStat,
   modalState,
   setModalState,
+  histoModalState,
+  setHistoModalState,
   idx
 ) {
-  let stats = JSON.parse(s);
   let columnId = stats["staattnum"];
+
+  const showHistoModal = () =>
+    setHistoModalState((prev) => ({ ...prev, [idx]: true }));
+  const hideHistoModal = () =>
+    setHistoModalState((prev) => ({ ...prev, [idx]: false }));
+
   return (
     <Tab
       className="header"
@@ -27,7 +34,15 @@ function CreateTab(
     >
       <Table striped bordered hover variant="dark" responsive>
         <tbody>
-          {[...sanitizeStats(stats).entries()].map(([statName, valueInfo]) => (
+          {[
+            ...sanitizeStats(
+              stats,
+              histoModalState,
+              showHistoModal,
+              hideHistoModal,
+              idx
+            ).entries(),
+          ].map(([statName, valueInfo]) => (
             <tr key={statName} className="subtable">
               <th>
                 {statName}
@@ -54,12 +69,23 @@ function CreateTab(
   );
 }
 
-function ColumnTabs({ statsArray, stats }) {
+function ColumnTabs({ statsArray, fullStats }) {
   const [modalState, setModalState] = useState({});
   const [editStat, setEditStat] = useState("");
+  const [histoModalState, setHistoModalState] = useState({});
+  const parsedArray = statsArray.map((s) => JSON.parse(s));
 
   useEffect(() => {
     setModalState((prev) => {
+      const updated = { ...prev };
+      for (let i = 0; i < statsArray.length; i++) {
+        if (!(i in updated)) {
+          updated[i] = false;
+        }
+      }
+      return updated;
+    });
+    setHistoModalState((prev) => {
       const updated = { ...prev };
       for (let i = 0; i < statsArray.length; i++) {
         if (!(i in updated)) {
@@ -73,14 +99,16 @@ function ColumnTabs({ statsArray, stats }) {
   return (
     <div className="right-div">
       <Tabs defaultActiveKey="1" className="mb-3">
-        {statsArray.map((s, idx) => {
+        {parsedArray.map((stats, idx) => {
           return CreateTab(
-            s,
             stats,
+            fullStats,
             editStat,
             setEditStat,
             modalState,
             setModalState,
+            histoModalState,
+            setHistoModalState,
             idx
           );
         })}

@@ -1,10 +1,10 @@
 import * as d3 from "d3";
-import AxisBottom from "./AxisBottom";
-import AxisLeft from "./AxisLeft";
+import AxisBottom from "./axis-bottom";
+import AxisLeft from "./axis-left";
 
 const MARGIN = { top: 30, right: 30, bottom: 50, left: 50 };
 
-export default function Histogram({ width, height, data, yValue }) {
+export default function Histogram({ width, height, data, yValue, small }) {
   // Layout. The div size is set by the given props.
   // The bounds (=area inside the axis) is calculated by substracting the margins
   const boundsWidth = width - MARGIN.right - MARGIN.left;
@@ -36,7 +36,7 @@ export default function Histogram({ width, height, data, yValue }) {
   }
 
   return (
-    <div>
+    <div style={{ overflowX: "auto" }}>
       <svg width={width} height={height} shapeRendering={"crispEdges"}>
         <g
           width={boundsWidth}
@@ -52,8 +52,16 @@ export default function Histogram({ width, height, data, yValue }) {
 
           {/* X axis, use an additional translation to appear at the bottom */}
           <g transform={`translate(0, ${boundsHeight})`}>
-            <AxisBottom xScale={xScale} bounds={data} />
+            <AxisBottom xScale={xScale} bounds={data} small={small} />
           </g>
+          <text
+            transform={`translate(${boundsWidth / 2 - 100}, ${
+              boundsHeight + 25
+            })`}
+            style={{ fill: "white", fontSize: "14px" }}
+          >
+            {small && data.length > 10 ? "Too many ticks to show bounds" : ""}
+          </text>
         </g>
       </svg>
     </div>
