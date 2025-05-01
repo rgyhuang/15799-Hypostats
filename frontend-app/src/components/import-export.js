@@ -50,6 +50,7 @@ function ImportExportButton({ relname, stats }) {
     } catch (error) {}
   };
 
+  // https://theroadtoenterprise.com/blog/how-to-download-csv-and-json-files-in-react
   const downloadFile = ({ data, fileName, fileType }) => {
     // Create a blob with the data we want to download as a file
     const blob = new Blob([data], { type: fileType });
