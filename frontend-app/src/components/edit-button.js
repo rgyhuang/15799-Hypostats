@@ -1,4 +1,5 @@
 import Button from "react-bootstrap/Button";
+import "./edit-button.css";
 
 export default function EditButton({ setModalShow, setEditStat }) {
   return (
@@ -8,7 +9,11 @@ export default function EditButton({ setModalShow, setEditStat }) {
         setModalShow();
         setEditStat();
       }}
-      style={{ border: "0px" }}
+      style={{
+        border: "0px",
+        padding: "0px 5px",
+        marginLeft: "10px",
+      }}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

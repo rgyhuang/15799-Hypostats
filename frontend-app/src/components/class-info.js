@@ -1,10 +1,81 @@
-import React, { useState } from "react";
-import Table from "react-bootstrap/Table";
-import Dropdown from "react-bootstrap/Dropdown";
+import React, { useState, useEffect } from "react";
+import {
+  Modal,
+  Table,
+  Dropdown,
+  Button,
+  Row,
+  Col,
+  Form,
+} from "react-bootstrap";
+import EditButton from "./edit-button";
 import "./class-info.css";
+
+function ClassModal({
+  editClassModal,
+  setEditClassModal,
+  numTuples,
+  setNumTuples,
+  classInfo,
+}) {
+  return (
+    <Modal
+      show={editClassModal}
+      onHide={() => setEditClassModal(false)}
+      size="lg"
+      aria-labelledby="contained-modal-title-vcenter"
+      centered
+    >
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Number Tuple Editor
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={(e) => e.preventDefault()}>
+          <Form.Group as={Row} controlId="editableText">
+            <Form.Label column sm="2">
+              reltuples
+            </Form.Label>
+            <Col sm="10">
+              <Form.Control
+                type="text"
+                value={numTuples}
+                onChange={(e) => setNumTuples(e.target.value)}
+                placeholder="Enter statistic"
+              />
+            </Col>
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button
+          onClick={() => {
+            classInfo["reltuples"] = JSON.parse(numTuples);
+            setEditClassModal(false);
+          }}
+        >
+          Save
+        </Button>
+        <Button
+          onClick={() => setEditClassModal(false)}
+          style={{ border: "0px", backgroundColor: "red" }}
+        >
+          Cancel
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
 
 export default function ClassTable({ data }) {
   const [attribute, setAttribute] = useState("");
+  const [editClassModal, setEditClassModal] = useState(false);
+  const [numTuples, setNumTuples] = useState("");
+
+  useEffect(() => {
+    setNumTuples(JSON.stringify(data["reltuples"]));
+  }, [data]);
 
   return (
     <div className="left-div">
@@ -27,7 +98,13 @@ export default function ClassTable({ data }) {
           </tr>
           <tr>
             <th>Number of Tuples</th>
-            <th>{data["reltuples"]}</th>
+            <th>
+              {data["reltuples"]}
+              <EditButton
+                setModalShow={() => setEditClassModal(true)}
+                setEditStat={() => {}}
+              />
+            </th>
           </tr>
           <tr>
             <th colSpan={2}>
@@ -36,7 +113,7 @@ export default function ClassTable({ data }) {
                   Query pg_class Attribute
                 </Dropdown.Toggle>
                 <Dropdown.Menu className="scrollable-menu">
-                  {Object.entries(data).map(([k, v]) => (
+                  {Object.entries(data).map(([k, _]) => (
                     <Dropdown.Item key={k} onClick={() => setAttribute(k)}>
                       {k}
                     </Dropdown.Item>
@@ -55,6 +132,13 @@ export default function ClassTable({ data }) {
           )}
         </tbody>
       </Table>
+      <ClassModal
+        editClassModal={editClassModal}
+        setEditClassModal={setEditClassModal}
+        numTuples={numTuples}
+        setNumTuples={setNumTuples}
+        classInfo={data}
+      />
     </div>
   );
 }
