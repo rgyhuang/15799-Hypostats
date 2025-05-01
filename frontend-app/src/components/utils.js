@@ -23,22 +23,24 @@ function sanitizeStats(stats) {
         case 1:
           // Most Common Values
           let valuesTable = (
-            <Table striped bordered hover size="sm" variant="dark">
-              <thead>
-                <tr>
-                  <th>Value</th>
-                  <th>Frequency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stavalues.map((v, i) => (
-                  <tr key={"value" + i}>
-                    <th>{JSON.stringify(v)}</th>
-                    <th>{stanumbers[i]}</th>
+            <div className="inset-table">
+              <Table striped bordered hover size="sm" variant="dark">
+                <thead>
+                  <tr>
+                    <th>Value</th>
+                    <th>Frequency</th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {stavalues.map((v, i) => (
+                    <tr key={"value" + i}>
+                      <th>{JSON.stringify(v)}</th>
+                      <th>{stanumbers[i]}</th>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
           );
           sumMCVFreqs = stanumbers.reduce(
             (accumulator, currentValue) => accumulator + currentValue,
