@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Tab from "react-bootstrap/Tab";
 import Tabs from "react-bootstrap/Tabs";
 import Table from "react-bootstrap/Table";
@@ -7,10 +7,15 @@ import EditButton from "./edit-button";
 import EditModal from "./edit-modal";
 import "./stats-info.css";
 
-function CreateTab(s, fullStats, idx) {
-  const [modalShow, setModalShow] = useState(false);
-  const [editStat, setEditStat] = useState("");
-
+function CreateTab(
+  s,
+  fullStats,
+  idx,
+  editStat,
+  setEditStat,
+  modalShow,
+  setModalShow
+) {
   let stats = JSON.parse(s);
   let columnId = stats["staattnum"];
   return (
@@ -50,10 +55,23 @@ function CreateTab(s, fullStats, idx) {
 }
 
 function ColumnTabs({ statsArray, stats }) {
+  const [modalShow, setModalShow] = useState(false);
+  const [editStat, setEditStat] = useState("");
+
   return (
     <div className="right-div">
       <Tabs defaultActiveKey="1" className="mb-3">
-        {statsArray.map((s, idx) => CreateTab(s, stats, idx))}
+        {statsArray.map((s, idx) =>
+          CreateTab(
+            s,
+            stats,
+            idx,
+            editStat,
+            setEditStat,
+            modalShow,
+            setModalShow
+          )
+        )}
       </Tabs>
     </div>
   );

@@ -85,12 +85,9 @@ export default function EditModal({
 
   useEffect(() => {
     if (statToEdit) {
-      if (isStakind) {
-        setStavaluesString(stavalues["data"].toString());
-        setStanumbersString(stanumbers["data"].toString());
-      } else {
-        setMyStat(JSON.stringify(stats[statToEdit]));
-      }
+      setStavaluesString(isStakind ? stavalues["data"].toString() : "");
+      setStanumbersString(isStakind ? stanumbers["data"].toString() : "");
+      setMyStat(JSON.stringify(stats[statToEdit]));
     }
   }, [statToEdit, stats]);
 
