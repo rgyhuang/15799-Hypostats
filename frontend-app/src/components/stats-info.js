@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Tab from "react-bootstrap/Tab";
 import Tabs from "react-bootstrap/Tabs";
 import Table from "react-bootstrap/Table";
@@ -10,11 +10,11 @@ import "./stats-info.css";
 function CreateTab(
   s,
   fullStats,
-  idx,
   editStat,
   setEditStat,
-  modalShow,
-  setModalShow
+  modalState,
+  setModalState,
+  idx
 ) {
   let stats = JSON.parse(s);
   let columnId = stats["staattnum"];
@@ -32,9 +32,10 @@ function CreateTab(
               <th>
                 {statName}
                 <EditButton
-                  setModalShow={setModalShow}
-                  setEditStat={setEditStat}
-                  statToEdit={valueInfo[1]}
+                  setModalShow={() =>
+                    setModalState((prev) => ({ ...prev, [idx]: true }))
+                  }
+                  setEditStat={() => setEditStat(valueInfo[1])}
                 />
               </th>
               <th>{valueInfo[0]}</th>
@@ -43,35 +44,46 @@ function CreateTab(
         </tbody>
       </Table>
       <EditModal
-        show={modalShow}
-        onHide={() => setModalShow(false)}
+        show={modalState[idx] || false}
+        onHide={() => setModalState((prev) => ({ ...prev, [idx]: false }))}
         stats={stats}
         fullStats={fullStats}
         statToEdit={editStat}
-        colToEdit={idx}
       />
     </Tab>
   );
 }
 
 function ColumnTabs({ statsArray, stats }) {
-  const [modalShow, setModalShow] = useState(false);
+  const [modalState, setModalState] = useState({});
   const [editStat, setEditStat] = useState("");
+
+  useEffect(() => {
+    setModalState((prev) => {
+      const updated = { ...prev };
+      for (let i = 0; i < statsArray.length; i++) {
+        if (!(i in updated)) {
+          updated[i] = false;
+        }
+      }
+      return updated;
+    });
+  }, [statsArray]);
 
   return (
     <div className="right-div">
       <Tabs defaultActiveKey="1" className="mb-3">
-        {statsArray.map((s, idx) =>
-          CreateTab(
+        {statsArray.map((s, idx) => {
+          return CreateTab(
             s,
             stats,
-            idx,
             editStat,
             setEditStat,
-            modalShow,
-            setModalShow
-          )
-        )}
+            modalState,
+            setModalState,
+            idx
+          );
+        })}
       </Tabs>
     </div>
   );

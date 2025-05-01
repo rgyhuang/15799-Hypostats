@@ -13,7 +13,7 @@ function EditableForm({
 }) {
   if (statToEdit.startsWith("stakind")) {
     return (
-      <Form>
+      <Form onSubmit={(e) => e.preventDefault()}>
         <Form.Group as={Row} controlId="editableText">
           <Form.Label>
             <h5>{"Editing " + statToEdit}</h5>
@@ -47,7 +47,7 @@ function EditableForm({
     );
   } else {
     return (
-      <Form>
+      <Form onSubmit={(e) => e.preventDefault()}>
         <Form.Group as={Row} controlId="editableText">
           <Form.Label column sm="2">
             {statToEdit}
@@ -72,7 +72,6 @@ export default function EditModal({
   stats,
   fullStats,
   statToEdit,
-  colToEdit,
 }) {
   const isStakind = statToEdit.startsWith("stakind");
   const whichStakind = statToEdit.charAt(statToEdit.length - 1);
@@ -89,7 +88,7 @@ export default function EditModal({
       setStanumbersString(isStakind ? stanumbers["data"].toString() : "");
       setMyStat(JSON.stringify(stats[statToEdit]));
     }
-  }, [statToEdit, stats]);
+  }, [statToEdit, stats, isStakind, stavalues, stanumbers]);
 
   return (
     <Modal
@@ -120,6 +119,7 @@ export default function EditModal({
         <Button
           onClick={() => {
             let editedStat = stats;
+            console.log("editedStat is", editedStat);
             if (isStakind) {
               editedStat["stanumbers" + whichStakind]["data"] =
                 stanumbersString;
@@ -127,8 +127,8 @@ export default function EditModal({
             } else {
               editedStat[statToEdit] = JSON.parse(myStat);
             }
-            let newStats = { ...fullStats };
-            newStats["stats_info"][colToEdit] = JSON.stringify(editedStat);
+            const colToEdit = stats["staattnum"] - 1;
+            fullStats["stats_info"][colToEdit] = JSON.stringify(editedStat);
             onHide();
           }}
         >

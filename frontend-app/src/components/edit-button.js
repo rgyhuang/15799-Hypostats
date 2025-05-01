@@ -1,12 +1,12 @@
 import Button from "react-bootstrap/Button";
 
-export default function EditButton({ setModalShow, setEditStat, statToEdit }) {
+export default function EditButton({ setModalShow, setEditStat }) {
   return (
     <Button
       className="editButton"
       onClick={() => {
-        setModalShow(true);
-        setEditStat(statToEdit);
+        setModalShow();
+        setEditStat();
       }}
       style={{ border: "0px" }}
     >
