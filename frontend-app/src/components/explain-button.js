@@ -31,7 +31,7 @@ const ExplainButton = () => {
   };
 
   return (
-    <div>
+    <div className="explain-container">
       <form onSubmit={handleSubmit} className="form">
         <input
           type="text"
@@ -47,8 +47,9 @@ const ExplainButton = () => {
       {result.length > 0 && (
         <div className="plan-container">
           <h2>Explain Plan</h2>
-
-          <pre>{result}</pre>
+          {result.map((line, idx) => (
+            <pre key={idx}>{line}</pre>
+          ))}
         </div>
       )}
     </div>
