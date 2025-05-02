@@ -48,6 +48,8 @@ impl FromRow<'_, PgRow> for ClassInfo {
     }
 }
 
+const DEBUG: bool = false;
+
 #[async_std::main]
 async fn main() -> tide::Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -135,10 +137,14 @@ async fn table_dump(mut req: Request<PgPool>) -> tide::Result {
         relname
     );
     let ClassInfo { oid, relnatts } = sqlx::query_as(&query).fetch_one(pool).await?;
-    println!("oid: {} num columns: {}\n", oid, relnatts);
+    if DEBUG {
+      println!("oid: {} num columns: {}\n", oid, relnatts);
+    }
     let class_query = format!("SELECT pg_class_dump({})", oid);
     let class_dump: (String,) = sqlx::query_as(&class_query).fetch_one(pool).await?;
-    println!("Received class dump\n{}\n", class_dump.0);
+    if DEBUG {
+      println!("Received class dump\n{}\n", class_dump.0);
+    }
 
     let mut stat_dumps: Vec<String> = Vec::with_capacity(relnatts as usize);
     for i in 1..relnatts + 1 {
@@ -147,10 +153,12 @@ async fn table_dump(mut req: Request<PgPool>) -> tide::Result {
             oid, i
         );
         let stat_dump: (String,) = sqlx::query_as(&stat_query).fetch_one(pool).await?;
-        println!(
+        if DEBUG {
+          println!(
             "Received dump for starelid {}, staattnum {}\n{}\n",
             oid, i, stat_dump.0
-        );
+          );
+        }
         stat_dumps.push(stat_dump.0);
     }
 
@@ -158,10 +166,12 @@ async fn table_dump(mut req: Request<PgPool>) -> tide::Result {
     for i in 1..relnatts + 1 {
         let att_query = format!("SELECT pg_attribute_dump({}, {})", oid, i as i32);
         let att_dump: (String,) = sqlx::query_as(&att_query).fetch_one(pool).await?;
-        println!(
+        if DEBUG {
+          println!(
             "Received dump for oid {}, attcol {}\n{}\n",
             oid, i, att_dump.0
-        );
+          );
+        }
         att_dumps.push(att_dump.0);
     }
 
@@ -203,6 +213,8 @@ async fn table_load(mut req: Request<PgPool>) -> tide::Result {
             return Ok("Failed to a load pg_attribute\n".into());
         }
     }
-    println!("Successfully loaded data\n");
+    if DEBUG {
+      println!("Successfully loaded data\n");
+    }
     Ok("Successfully loaded data\n".into())
 }
