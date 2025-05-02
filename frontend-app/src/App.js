@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import ClassTable from "./components/class-info";
 import ColumnTabs from "./components/stats-info";
 import ImportExportButton from "./components/import-export";
+import ExplainButton from "./components/explain-button";
 // export current instance
 
 export default function FormWithGetRequest() {
@@ -45,6 +46,7 @@ export default function FormWithGetRequest() {
           <ColumnTabs statsArray={result["stats_info"]} fullStats={result} />
         </div>
       )}
+      <ExplainButton />
     </div>
   );
 }

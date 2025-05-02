@@ -3,12 +3,23 @@ use http_types::headers::HeaderValue;
 use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
 use std::fs::File;
 use std::io::prelude::*;
+use tide::http::Response;
+use tide::http::StatusCode;
 use tide::security::{CorsMiddleware, Origin};
 use tide::{prelude::*, Request};
 
 #[derive(Debug, Deserialize)]
 struct TableInfo {
     relname: String,
+}
+#[derive(Debug, Deserialize)]
+struct ExplainQuery {
+    query: String,
+}
+
+#[derive(Serialize)]
+struct ExplainPlan {
+    plan: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,7 +50,17 @@ impl FromRow<'_, PgRow> for ClassInfo {
 
 #[async_std::main]
 async fn main() -> tide::Result<()> {
-    let pool = PgPool::connect("postgres://rgyhuang@localhost:28813/hypostats").await?;
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 3 {
+        println!("Usage: <username> <port>");
+        return Ok(());
+    }
+    let username = args[1].clone();
+    let port = args[2].clone();
+    println!("Connecting to Postgres at port {}", port);
+    println!("Using username {}", username);
+    let url = format!("postgres://{}@localhost:{}/hypostats", username, port);
+    let pool = PgPool::connect(&url).await?;
     println!("Connected to Postgres!");
 
     let mut app = tide::with_state(pool);
@@ -49,21 +70,38 @@ async fn main() -> tide::Result<()> {
         .allow_credentials(false);
 
     app.with(cors);
-    app.at("/explain").post(test);
+    app.at("/explain").post(explain);
     app.at("/export").post(table_dump);
     app.at("/export_dump").post(table_export);
     app.at("/load").post(table_load);
+
     app.listen("127.0.0.1:8080").await?;
+    println!("end");
+
     Ok(())
 }
 
-async fn test(req: Request<PgPool>) -> tide::Result {
+async fn explain(mut req: Request<PgPool>) -> tide::Result {
+    let ExplainQuery { query } = req.body_json().await?;
     let pool = req.state();
 
-    let query = format!("EXPLAIN SELECT * FROM BAR");
-    let query_result: (String,) = sqlx::query_as(&query).fetch_one(pool).await?;
+    // collect all rows
+    let stmt = format!("EXPLAIN {}", query);
+    let rows = sqlx::query(&stmt).fetch_all(pool).await.map_err(|e| {
+        tide::Error::from_str(StatusCode::InternalServerError, format!("SQL error: {}", e))
+    })?;
 
-    Ok(query_result.0.into()) // Return the result as text
+    // collect all rows into a vector of strings
+    let plan_lines: Vec<String> = rows
+        .into_iter()
+        .map(|row| row.get::<String, _>(0))
+        .collect();
+    let resp_body = ExplainPlan { plan: plan_lines };
+
+    let mut res = Response::new(StatusCode::Ok);
+    res.set_body(tide::Body::from_json(&resp_body)?);
+    res.set_content_type(tide::http::mime::JSON);
+    Ok(res.into())
 }
 
 async fn table_export(mut req: Request<PgPool>) -> tide::Result {
@@ -80,7 +118,7 @@ async fn table_export(mut req: Request<PgPool>) -> tide::Result {
     })
     .unwrap();
 
-    let pool = req.state();
+    // let pool: &sqlx::Pool<sqlx::Postgres> = req.state();
 
     let mut file = File::create("table_dump.json")?;
     file.write_all(dump_str.as_bytes())?;
