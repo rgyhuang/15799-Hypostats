@@ -4,8 +4,10 @@ set -euo pipefail
 
 USERNAME=$1
 BACKEND_PORT=$2
+trap 'lsof -nti:8080| xargs kill -9' 0
 
 echo "Starting up hypostats..."
+
 echo -e "\tUsername: ${USERNAME}"
 echo -e "\tPort: ${BACKEND_PORT}"
 
@@ -33,5 +35,7 @@ echo "Starting up frontend..."
 # Start frontend app
 cd frontend-app/
 npm start
+
+echo "Killing all processes..."
 
 cd -
