@@ -15,10 +15,10 @@ function CreateTab(
   modalState,
   setModalState,
   histoModalState,
-  setHistoModalState,
-  idx
+  setHistoModalState
 ) {
-  let columnId = stats["staattnum"];
+  const columnId = stats["staattnum"];
+  const idx = columnId - 1;
 
   const showHistoModal = () =>
     setHistoModalState((prev) => ({ ...prev, [idx]: true }));
@@ -105,7 +105,7 @@ function ColumnTabs({ statsArray, fullStats }) {
   return (
     <div className="right-div">
       <Tabs defaultActiveKey="1" className="mb-3">
-        {parsedArray.map((stats, idx) => {
+        {parsedArray.map((stats) => {
           return CreateTab(
             stats,
             fullStats,
@@ -114,8 +114,7 @@ function ColumnTabs({ statsArray, fullStats }) {
             modalState,
             setModalState,
             histoModalState,
-            setHistoModalState,
-            idx
+            setHistoModalState
           );
         })}
       </Tabs>

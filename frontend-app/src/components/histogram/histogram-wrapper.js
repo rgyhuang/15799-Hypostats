@@ -5,7 +5,8 @@ import "./histogram.css";
 export default function HistogramWrapper({
   width,
   height,
-  data,
+  xData,
+  yData,
   yValue,
   idx,
   histoModalState,
@@ -17,11 +18,12 @@ export default function HistogramWrapper({
       <Histogram
         width={width}
         height={height}
-        data={data}
+        xData={xData}
+        yData={yData}
         yValue={yValue}
         small={true}
       />
-      {data.length > 10 && (
+      {xData.length > 10 && (
         <Button
           onClick={showHistoModal}
           style={{
@@ -49,7 +51,8 @@ export default function HistogramWrapper({
           <Histogram
             width={2500}
             height={600}
-            data={data}
+            xData={xData}
+            yData={yData}
             yValue={yValue}
             small={false}
           />

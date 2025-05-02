@@ -55,12 +55,18 @@ function sanitizeStats(
           cleanStats.set("Most Common Values", [valuesTable, stakindStr]);
           break;
         case 2:
+          const yValue = (1 - sumMCVFreqs) / (stavalues.length - 1);
+          const yDataValues = [];
+          for (const _ in stavalues) {
+            yDataValues.push(1);
+          }
           let histogram = (
             <HistogramWrapper
               width={500}
               height={200}
-              data={stavalues}
-              yValue={(1 - sumMCVFreqs) / (stavalues.length - 1)}
+              xData={stavalues}
+              yData={yDataValues}
+              yValue={yValue}
               idx={idx}
               histoModalState={histoModalState}
               showHistoModal={showHistoModal}
@@ -95,6 +101,37 @@ function sanitizeStats(
             </Table>
           );
           cleanStats.set("Most Common Elements", [elementsTable, stakindStr]);
+          break;
+        case 5:
+          let counts = {};
+          for (let i = 0; i < stanumbers.length - 1; i++) {
+            const val = stanumbers[i];
+            counts[val] = counts[val] ? counts[val] + 1 : 1;
+          }
+          const xData = Object.keys(counts).map((s) => JSON.parse(s));
+          let tmp = Object.values(counts).map((n) => n / 100);
+          tmp[tmp.length - 2] += tmp[tmp.length - 1];
+          tmp = tmp.slice(0, tmp.length - 1);
+          const maxY = Math.max(...tmp);
+          const yData = tmp.map((n) => n / maxY);
+
+          let distinctHistogram = (
+            <HistogramWrapper
+              width={500}
+              height={200}
+              xData={xData}
+              yData={yData}
+              yValue={maxY}
+              idx={idx}
+              histoModalState={histoModalState}
+              showHistoModal={showHistoModal}
+              hideHistoModal={hideHistoModal}
+            />
+          );
+          cleanStats.set("Distinct Elements Histogram", [
+            distinctHistogram,
+            stakindStr,
+          ]);
           break;
         default:
           break;
