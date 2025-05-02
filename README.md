@@ -25,7 +25,8 @@ Running project
 4. When making changes, after compiling must drop the extension and re-add it with
    `DROP EXTENSION hypostats` and `CREATE EXTENSION hypostats`
 5. Run `Select install_size_hook()` and `select remove_size_hook()` to install/drop hook
-6. To run the entire application, use the `run.sh <username> <port number>` shell script. See
+6. To load TPC data into Postgres, run `\i TPC-H/schema.sql` and `\i TPC-H/load.sql` to load the tables. EXPLAIN queries are added in the `TPC-H.tar.gz`.
+7. To run the entire application, use the `run.sh <username> <port number>` shell script. See
    below for obtaining `username` and `port number`
 
 Running backend server
