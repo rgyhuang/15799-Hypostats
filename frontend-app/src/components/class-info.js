@@ -17,6 +17,7 @@ function ClassModal({
   numTuples,
   setNumTuples,
   classInfo,
+  fullStats,
 }) {
   return (
     <Modal
@@ -51,7 +52,9 @@ function ClassModal({
       <Modal.Footer>
         <Button
           onClick={() => {
+            let updatedInfo = classInfo;
             classInfo["reltuples"] = JSON.parse(numTuples);
+            fullStats["class_info"] = JSON.stringify(updatedInfo);
             setEditClassModal(false);
           }}
         >
@@ -68,7 +71,7 @@ function ClassModal({
   );
 }
 
-export default function ClassTable({ data }) {
+export default function ClassTable({ data, fullStats }) {
   const [attribute, setAttribute] = useState("");
   const [editClassModal, setEditClassModal] = useState(false);
   const [numTuples, setNumTuples] = useState("");
@@ -138,6 +141,7 @@ export default function ClassTable({ data }) {
         numTuples={numTuples}
         setNumTuples={setNumTuples}
         classInfo={data}
+        fullStats={fullStats}
       />
     </div>
   );

@@ -42,7 +42,10 @@ export default function FormWithGetRequest() {
       </form>
       {result && (
         <div className="results-container">
-          <ClassTable data={JSON.parse(result["class_info"])} />
+          <ClassTable
+            data={JSON.parse(result["class_info"])}
+            fullStats={result}
+          />
           <ColumnTabs statsArray={result["stats_info"]} fullStats={result} />
         </div>
       )}
