@@ -88,11 +88,12 @@ async fn explain(mut req: Request<PgPool>) -> tide::Result {
     let pool = req.state();
 
     if DEBUG {
-      println!("Received query: {}", query);
+      println!("Received query: {}\n", query);
     }
     // collect all rows
     let stmt = format!("EXPLAIN {}", query);
     let rows = sqlx::query(&stmt).fetch_all(pool).await.map_err(|e| {
+        println!("Error is {}", e);
         tide::Error::from_str(StatusCode::InternalServerError, format!("SQL error: {}", e))
     })?;
 
@@ -194,6 +195,14 @@ async fn table_load(mut req: Request<PgPool>) -> tide::Result {
         atts_info,
     } = req.body_json().await?;
     let pool = req.state();
+
+    let pg_class_row: hypostats::PgClassRow = serde_json::from_str(&class_info).unwrap();
+    let relname: String = pg_class_row.relname;
+    let class_query = format!("SELECT oid, relnatts FROM pg_class WHERE relname='{}'", relname);
+    let class_opt: Option<ClassInfo> = sqlx::query_as(&class_query).fetch_optional(pool).await?;
+    if (class_opt.is_none()) {
+      
+    }
 
     let class_load_query = format!("SELECT pg_class_load('{}')", class_info);
     let class_loaded: (bool,) = sqlx::query_as(&class_load_query).fetch_one(pool).await?;

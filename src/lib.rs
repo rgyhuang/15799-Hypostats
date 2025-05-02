@@ -186,9 +186,9 @@ struct PgStatisticRow {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct PgClassRow {
+pub struct PgClassRow {
     oid: pg_sys::Oid,
-    relname: String,
+    pub relname: String,
     relnamespace: pg_sys::Oid,
     reltype: pg_sys::Oid,
     reloftype: pg_sys::Oid,
