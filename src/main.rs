@@ -48,7 +48,7 @@ impl FromRow<'_, PgRow> for ClassInfo {
     }
 }
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 #[async_std::main]
 async fn main() -> tide::Result<()> {
@@ -87,6 +87,9 @@ async fn explain(mut req: Request<PgPool>) -> tide::Result {
     let ExplainQuery { query } = req.body_json().await?;
     let pool = req.state();
 
+    if DEBUG {
+      println!("Received query: {}", query);
+    }
     // collect all rows
     let stmt = format!("EXPLAIN {}", query);
     let rows = sqlx::query(&stmt).fetch_all(pool).await.map_err(|e| {
@@ -197,13 +200,25 @@ async fn table_load(mut req: Request<PgPool>) -> tide::Result {
     if !class_loaded.0 {
         return Ok("Failed to load pg_class column\n".into());
     }
+    if DEBUG {
+      println!("Successfully loaded pg_class");
+    }
 
     for stat in stats_info.iter() {
         let stat_load_query = format!("SELECT pg_statistic_load('{}')", stat);
+        if DEBUG {
+          println!("stat is {}", stat);
+        }
         let stat_loaded: (bool,) = sqlx::query_as(&stat_load_query).fetch_one(pool).await?;
         if !stat_loaded.0 {
+            if DEBUG {
+              println!("Failing at this stat");
+            }
             return Ok("Failed to a load pg_statistic\n".into());
         }
+    }
+    if DEBUG {
+      println!("Successfully loaded all statistics");
     }
 
     for att in atts_info.iter() {
@@ -214,7 +229,7 @@ async fn table_load(mut req: Request<PgPool>) -> tide::Result {
         }
     }
     if DEBUG {
-      println!("Successfully loaded data\n");
+      println!("Successfully loaded all attribute stats, finished with data!");
     }
     Ok("Successfully loaded data\n".into())
 }

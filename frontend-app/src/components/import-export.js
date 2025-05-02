@@ -23,6 +23,7 @@ function ImportExportButton({ relname, stats }) {
             body: content,
           });
           const result = await response.json();
+          console.log(result);
         } catch (error) {
           console.error("Error uploading file:", error);
         }

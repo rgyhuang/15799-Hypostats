@@ -113,6 +113,18 @@ impl JsonAarr {
             }
             s => {
                 let datum: pg_sys::Datum = match self.typ {
+                    pg_sys::DATEOID => {
+                        let v_date: Vec<pgrx::datum::Date> = serde_json::from_str(s).unwrap();
+                        Vec::<pgrx::datum::Date>::into_datum(v_date).unwrap()
+                    },
+                    pg_sys::VARCHAROID => {
+                        let v_char: Vec<String> = serde_json::from_str(s).unwrap();
+                        Vec::<String>::into_datum(v_char).unwrap()
+                    },
+                    pg_sys::NUMERICOID => {
+                        let v_f32: Vec<f32> = serde_json::from_str(s).unwrap();
+                        Vec::<f32>::into_datum(v_f32).unwrap()
+                    },
                     pg_sys::FLOAT4OID => {
                         let v_f32: Vec<f32> = serde_json::from_str(s).unwrap();
                         Vec::<f32>::into_datum(v_f32).unwrap()
@@ -129,7 +141,7 @@ impl JsonAarr {
                         let v_i64: Vec<i64> = serde_json::from_str(s).unwrap();
                         Vec::<i64>::into_datum(v_i64).unwrap()
                     }
-                    _ => panic!("Unsupported type"),
+                    _ => panic!("Unsupported type for data type {}", s),
                 };
                 nulls[index] = false;
                 values[index] = datum;
