@@ -39,7 +39,17 @@ impl FromRow<'_, PgRow> for ClassInfo {
 
 #[async_std::main]
 async fn main() -> tide::Result<()> {
-    let pool = PgPool::connect("postgres://rgyhuang@localhost:28813/hypostats").await?;
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 3 {
+        println!("Usage: <username> <port>");
+        return Ok(());
+    }
+    let username = args[1].clone();
+    let port = args[2].clone();
+    println!("Connecting to Postgres at port {}", port);
+    println!("Using username {}", username);
+    let url = format!("postgres://{}@localhost:{}/hypostats", username, port);
+    let pool = PgPool::connect(&url).await?;
     println!("Connected to Postgres!");
 
     let mut app = tide::with_state(pool);
@@ -80,7 +90,7 @@ async fn table_export(mut req: Request<PgPool>) -> tide::Result {
     })
     .unwrap();
 
-    let pool = req.state();
+    // let pool: &sqlx::Pool<sqlx::Postgres> = req.state();
 
     let mut file = File::create("table_dump.json")?;
     file.write_all(dump_str.as_bytes())?;
