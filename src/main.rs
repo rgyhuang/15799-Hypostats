@@ -41,7 +41,7 @@ impl FromRow<'_, PgRow> for ClassInfo {
                 let mut bytes: [u8; 4] = [0; 4];
                 let row_bytes = row.try_get_raw(0)?.as_bytes().unwrap();
                 bytes.copy_from_slice(&row_bytes[..4]);
-                i32::from_be_bytes(<[u8; 4]>::try_from(bytes).unwrap())
+                i32::from_be_bytes(bytes)
             },
             relnatts: row.try_get(1)?,
         })

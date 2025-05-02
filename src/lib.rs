@@ -46,8 +46,8 @@ impl JsonF32arr {
 
     unsafe fn set_pg_statistic_tuple(
         &self,
-        values: &mut Vec<pg_sys::Datum>,
-        nulls: &mut Vec<bool>,
+        values: &mut [pg_sys::Datum],
+        nulls: &mut [bool],
         index: usize,
     ) {
         match self.data.as_str() {
@@ -102,8 +102,8 @@ impl JsonAarr {
 
     unsafe fn set_pg_statistic_tuple(
         &self,
-        values: &mut Vec<pg_sys::Datum>,
-        nulls: &mut Vec<bool>,
+        values: &mut [pg_sys::Datum],
+        nulls: &mut [bool],
         index: usize,
     ) {
         match self.data.as_str() {
@@ -291,7 +291,7 @@ fn char_arr_to_string(arr: [i8; 64]) -> String {
 
 #[pg_extern]
 fn pg_attribute_dump(table_oid: i32, column_index: i32) -> Option<String> {
-    let result = unsafe {
+    unsafe {
         let pg_attribute =
             pg_sys::table_open(pg_sys::AttributeRelationId, pg_sys::RowExclusiveLock as i32);
         let tuple = pg_sys::SearchSysCache2(
@@ -356,8 +356,7 @@ fn pg_attribute_dump(table_oid: i32, column_index: i32) -> Option<String> {
         };
         pg_sys::table_close(pg_attribute, pg_sys::RowExclusiveLock as i32);
         tuple_json
-    };
-    result
+    }
 }
 
 #[pg_extern]
@@ -462,7 +461,7 @@ fn pg_attribute_load(data: String) -> bool {
 
 #[pg_extern]
 fn pg_class_dump(table_oid: i32) -> Option<String> {
-    let result = unsafe {
+    unsafe {
         let pg_class =
             pg_sys::table_open(pg_sys::RelationRelationId, pg_sys::RowExclusiveLock as i32);
         let tuple =
@@ -542,8 +541,7 @@ fn pg_class_dump(table_oid: i32) -> Option<String> {
         };
         pg_sys::table_close(pg_class, pg_sys::RowExclusiveLock as i32);
         tuple_json
-    };
-    result
+    }
 }
 
 // From ChatGPT
@@ -723,7 +721,7 @@ fn pg_class_load(data: String) -> bool {
 
 #[pg_extern]
 fn pg_statistic_dump(starelid: i32, staattnum: i16) -> Option<String> {
-    let result = unsafe {
+    unsafe {
         let pg_statistic =
             pg_sys::table_open(pg_sys::StatisticRelationId, pg_sys::RowExclusiveLock as i32);
         let tuple = pg_sys::SearchSysCache3(
@@ -891,8 +889,7 @@ fn pg_statistic_dump(starelid: i32, staattnum: i16) -> Option<String> {
         };
         pg_sys::table_close(pg_statistic, pg_sys::RowExclusiveLock as i32);
         tuple_json
-    };
-    result
+    }
 }
 
 #[pg_extern]
@@ -1058,7 +1055,7 @@ fn pg_statistic_load(data: String) -> bool {
 
 // Verifies that stavalues have the correct (original) type and has same length as
 // new stanum
-fn verify_stavalues(typ: pg_sys::Oid, stavalues_as_string: &String, stanum_len: usize) {
+fn verify_stavalues(typ: pg_sys::Oid, stavalues_as_string: &str, stanum_len: usize) {
     match typ {
         pg_sys::FLOAT4OID => {
             let vec: Vec<f32> = serde_json::from_str(stavalues_as_string).unwrap();
@@ -1088,47 +1085,47 @@ fn verify_stavalues(typ: pg_sys::Oid, stavalues_as_string: &String, stanum_len: 
     }
 }
 
-fn verify_histogram(typ: pg_sys::Oid, stavalues_as_string: &String) {
+fn verify_histogram(typ: pg_sys::Oid, stavalues_as_string: &str) {
     match typ {
         pg_sys::FLOAT4OID => {
             let vec: Vec<f32> = serde_json::from_str(stavalues_as_string).unwrap();
             let mut prev_elem = vec[0];
-            for i in 1..vec.len() {
+            for item in vec.iter().skip(1) {
                 // Any way to clean this up?
-                if vec[i] <= prev_elem {
+                if *item <= prev_elem {
                     panic!("Histogram bounds must be strictly increasing");
                 }
-                prev_elem = vec[i];
+                prev_elem = *item;
             }
         }
         pg_sys::FLOAT8OID => {
             let vec: Vec<f64> = serde_json::from_str(stavalues_as_string).unwrap();
             let mut prev_elem = vec[0];
-            for i in 1..vec.len() {
-                if vec[i] <= prev_elem {
+            for item in vec.iter().skip(1) {
+                if *item <= prev_elem {
                     panic!("Histogram bounds must be strictly increasing");
                 }
-                prev_elem = vec[i];
+                prev_elem = *item;
             }
         }
         pg_sys::INT4OID => {
             let vec: Vec<i32> = serde_json::from_str(stavalues_as_string).unwrap();
             let mut prev_elem = vec[0];
-            for i in 1..vec.len() {
-                if vec[i] <= prev_elem {
+            for item in vec.iter().skip(1) {
+                if *item <= prev_elem {
                     panic!("Histogram bounds must be strictly increasing");
                 }
-                prev_elem = vec[i];
+                prev_elem = *item;
             }
         }
         pg_sys::INT8OID => {
             let vec: Vec<i64> = serde_json::from_str(stavalues_as_string).unwrap();
             let mut prev_elem = vec[0];
-            for i in 1..vec.len() {
-                if vec[i] <= prev_elem {
+            for item in vec.iter().skip(1) {
+                if *item <= prev_elem {
                     panic!("Histogram bounds must be strictly increasing");
                 }
-                prev_elem = vec[i];
+                prev_elem = *item;
             }
         }
         _ => panic!("Unsupported type"),
@@ -1335,8 +1332,8 @@ fn pg_statistic_modify(
         }
         _ => panic!("Bad attribute"),
     };
-    let json_str = serde_json::to_string(&pg_row).unwrap();
-    json_str
+
+    serde_json::to_string(&pg_row).unwrap()
 }
 
 #[pg_extern]
