@@ -1,7 +1,12 @@
 import "./import-export.css";
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 function ImportExportButton({ relname, stats }) {
+  const [exportStats, setExportStats] = useState(null);
+  useEffect(() => {
+    setExportStats(stats);
+  }, [stats, relname]);
+
   const handleImport = (e) => {
     const file = e.target.files[0];
     console.log(file);
@@ -26,27 +31,18 @@ function ImportExportButton({ relname, stats }) {
     }
   };
 
-  const handleExport = async (e) => {
+  const handleLoad = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://localhost:8080/export", {
+      const response = await fetch("http://localhost:8080/load", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ relname: relname }),
+        body: JSON.stringify(exportStats),
       });
       const data = await response.json();
-
-      const saveResponse = await fetch("http://localhost:8080/export_dump", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      const saveResult = await saveResponse.json();
-      console.log(saveResult);
+      console.log(data);
     } catch (error) {}
   };
 
@@ -71,7 +67,7 @@ function ImportExportButton({ relname, stats }) {
   const handleDownload = (e) => {
     e.preventDefault();
     downloadFile({
-      data: JSON.stringify(stats),
+      data: JSON.stringify(exportStats),
       fileName: "pg_export.json",
       fileType: "text/json",
     });
@@ -82,8 +78,8 @@ function ImportExportButton({ relname, stats }) {
       <div className="input-group"></div>
       <input id="file" type="file" onChange={handleImport} />
 
-      <button className="themed-button" onClick={handleExport}>
-        Export
+      <button className="themed-button" onClick={handleLoad}>
+        Load
       </button>
       <button className="themed-button" onClick={handleDownload}>
         Download
