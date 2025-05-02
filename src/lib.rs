@@ -117,6 +117,10 @@ impl JsonAarr {
                         let v_date: Vec<pgrx::datum::Date> = serde_json::from_str(s).unwrap();
                         Vec::<pgrx::datum::Date>::into_datum(v_date).unwrap()
                     },
+                    pg_sys::TEXTOID => {
+                        let v_string: Vec<String> = serde_json::from_str(s).unwrap();
+                        Vec::<String>::into_datum(v_string).unwrap()
+                    },
                     pg_sys::VARCHAROID => {
                         let v_char: Vec<String> = serde_json::from_str(s).unwrap();
                         Vec::<String>::into_datum(v_char).unwrap()
@@ -141,7 +145,7 @@ impl JsonAarr {
                         let v_i64: Vec<i64> = serde_json::from_str(s).unwrap();
                         Vec::<i64>::into_datum(v_i64).unwrap()
                     }
-                    _ => panic!("Unsupported type for data type {}", s),
+                    _ => panic!("Unsupported type for data type {}, data {}", self.typ.as_u32(), s),
                 };
                 nulls[index] = false;
                 values[index] = datum;
@@ -849,7 +853,7 @@ fn pg_statistic_dump(starelid: i32, staattnum: i16) -> Option<String> {
                     tuple,
                     pg_sys::Anum_pg_statistic_stavalues5 as pg_sys::AttrNumber,
                 );
-
+            
             let stanumbers1 = JsonF32arr::from(stanumbers1_opt_arrf32);
             let stanumbers2 = JsonF32arr::from(stanumbers2_opt_arrf32);
             let stanumbers3 = JsonF32arr::from(stanumbers3_opt_arrf32);
