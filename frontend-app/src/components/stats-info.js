@@ -25,12 +25,18 @@ function CreateTab(
   const hideHistoModal = () =>
     setHistoModalState((prev) => ({ ...prev, [idx]: false }));
 
+  const columnName =
+    "Column " +
+    idx +
+    " (" +
+    JSON.parse(fullStats["atts_info"][idx])["attname"] +
+    ")";
   return (
     <Tab
       className="header"
       key={columnId}
       eventKey={columnId}
-      title={"Column " + columnId}
+      title={columnName}
     >
       <Table striped bordered hover variant="dark" responsive>
         <tbody>

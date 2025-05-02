@@ -29,7 +29,7 @@ export default function AxisBottom({ xScale, bounds, small }) {
           !small && idx % 2 === 0 ? "translateY(40px)" : "translateY(20px)";
         let tickLabel =
           small && ticks.length > 10 ? "" : JSON.stringify(bounds[value]);
-        if (tickLabel.length > 5) {
+        if (!small && tickLabel.length > 5) {
           tickLabel = tickLabel.slice(0, 5) + "...";
         }
         return (
