@@ -200,8 +200,15 @@ async fn table_load(mut req: Request<PgPool>) -> tide::Result {
     let relname: String = pg_class_row.relname;
     let class_query = format!("SELECT oid, relnatts FROM pg_class WHERE relname='{}'", relname);
     let class_opt: Option<ClassInfo> = sqlx::query_as(&class_query).fetch_optional(pool).await?;
-    if (class_opt.is_none()) {
-      
+    if class_opt.is_none() {
+      let create_query = format!("CREATE TABLE {}", relname);
+      // Create table with all columns using atts_info
+          // Will have to use attname and atttypid to figure out what type it should be
+          // (VARCHAR, INT, DATE, etc)
+      // Replace all instances of the OID (oid in class, starelid in pg_statistic, and 
+      //   attrelid in pg_attribute)
+    } else {
+      // Make sure the OIDs match (if not, change those to match as well)
     }
 
     let class_load_query = format!("SELECT pg_class_load('{}')", class_info);
